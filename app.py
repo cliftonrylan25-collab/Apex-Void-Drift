@@ -11,7 +11,7 @@ import datetime
 # ==========================================
 st.set_page_config(page_title="A.P.E.X. SALVAGE COMMAND", layout="wide", initial_sidebar_state="collapsed")
 
-# Custom CSS focused on mobile responsiveness and terminal aesthetics
+# Custom CSS focused on mobile responsiveness, terminal aesthetics, and text-wrapping
 CUSTOM_CSS = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&display=swap');
@@ -28,6 +28,7 @@ h1, h2, h3 {
     text-transform: uppercase;
     text-shadow: 0 0 10px rgba(56, 189, 248, 0.3);
     margin-bottom: 0rem;
+    word-wrap: break-word;
 }
 .metric-box {
     background: linear-gradient(180deg, #0f172a 0%, #020617 100%);
@@ -37,6 +38,7 @@ h1, h2, h3 {
     border-radius: 4px;
     margin-bottom: 10px;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+    overflow-wrap: break-word;
 }
 .metric-box.danger { border-top-color: #ef4444; }
 .metric-box.warning { border-top-color: #f59e0b; }
@@ -46,12 +48,15 @@ h1, h2, h3 {
     color: #94a3b8;
     text-transform: uppercase;
     font-weight: 600;
+    line-height: 1.2;
+    margin-bottom: 4px;
 }
 .metric-value {
     font-size: 22px;
     color: #f8fafc;
     font-weight: 700;
     font-family: monospace;
+    line-height: 1.2;
 }
 .console-log {
     background-color: #020617;
@@ -63,6 +68,14 @@ h1, h2, h3 {
     font-family: monospace !important;
     font-size: 13px;
     color: #a78bfa;
+    overflow-wrap: break-word;
+}
+.console-log span {
+    display: block;
+    margin-bottom: 6px;
+    line-height: 1.4;
+    border-bottom: 1px solid rgba(30, 41, 59, 0.5);
+    padding-bottom: 4px;
 }
 .stButton>button {
     background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
@@ -73,6 +86,13 @@ h1, h2, h3 {
     text-transform: uppercase;
     transition: all 0.2s;
     width: 100%;
+    /* TEXT OVERLAP FIXES */
+    white-space: pre-wrap !important; 
+    word-wrap: break-word !important;
+    height: auto !important;
+    min-height: 2.5rem;
+    padding: 0.5rem;
+    line-height: 1.3;
 }
 .stButton>button:hover {
     border-color: #38bdf8;
@@ -95,12 +115,14 @@ h1, h2, h3 {
     padding: 15px;
     border-radius: 4px;
     margin-bottom: 15px;
+    overflow-wrap: break-word;
 }
 .upgrade-title {
     color: #8b5cf6;
     font-weight: 700;
     font-size: 16px;
     margin-bottom: 5px;
+    line-height: 1.2;
 }
 hr { border-color: #1e293b; }
 .progress-container {
@@ -606,7 +628,7 @@ def main():
                     st.markdown("<br>", unsafe_allow_html=True)
                     ret_cost = int((ship.depth_au * 2.5) * ship.get_fuel_efficiency())
                     st.markdown("<div class='danger-btn'>", unsafe_allow_html=True)
-                    if st.button(f"🔄 BURN RETROGRADE (RETURN) [F: {ret_cost}]"):
+                    if st.button(f"🔄 BURN RETROGRADE (RETURN) \n[F: {ret_cost}]"):
                         return_to_base(ship, market)
                         st.rerun()
                     st.markdown("</div>", unsafe_allow_html=True)
@@ -621,7 +643,7 @@ def main():
 
         with c_log:
             st.markdown("### A.P.E.X. MATRIX LOG")
-            log_html = "<br>".join([f"<span>{line}</span>" for line in ship.log])
+            log_html = "".join([f"<span>{line}</span>" for line in ship.log])
             st.markdown(f"<div class='console-log'>{log_html}</div>", unsafe_allow_html=True)
 
     # --- TAB 2: L.O.O.T. RADAR ---
@@ -664,7 +686,7 @@ def main():
                     st.markdown(f"""
                     <div class="upgrade-card">
                         <div class="upgrade-title">{u_data['name']} [LVL {lvl}]</div>
-                        <div style="font-size:12px; color:#cbd5e1; margin-bottom:8px; min-height:45px;">{u_data['desc']}</div>
+                        <div style="font-size:12px; color:#cbd5e1; margin-bottom:12px;">{u_data['desc']}</div>
                         <div style="color:#fbbf24; font-weight:700; margin-bottom:8px;">{cost:,} CR</div>
                     </div>
                     """, unsafe_allow_html=True)
