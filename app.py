@@ -9,8 +9,9 @@ import datetime
 # ==========================================
 # PAGE CONFIGURATION & THEME
 # ==========================================
-st.set_page_config(page_title="A.P.E.X. SALVAGE COMMAND", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="A.P.E.X. SALVAGE COMMAND", layout="wide", initial_sidebar_state="collapsed")
 
+# Custom CSS focused on mobile responsiveness and terminal aesthetics
 CUSTOM_CSS = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&display=swap');
@@ -36,9 +37,9 @@ h1, h2, h3 {
     margin-bottom: 10px;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
 }
-.metric-box.danger {
-    border-top-color: #ef4444;
-}
+.metric-box.danger { border-top-color: #ef4444; }
+.metric-box.warning { border-top-color: #f59e0b; }
+.metric-box.success { border-top-color: #10b981; }
 .metric-title {
     font-size: 12px;
     color: #94a3b8;
@@ -46,7 +47,7 @@ h1, h2, h3 {
     font-weight: 600;
 }
 .metric-value {
-    font-size: 24px;
+    font-size: 22px;
     color: #f8fafc;
     font-weight: 700;
     font-family: monospace;
@@ -56,7 +57,7 @@ h1, h2, h3 {
     border: 1px solid #1e293b;
     border-left: 4px solid #8b5cf6;
     padding: 15px;
-    height: 300px;
+    height: 400px;
     overflow-y: auto;
     font-family: monospace !important;
     font-size: 13px;
@@ -70,6 +71,7 @@ h1, h2, h3 {
     font-weight: 600;
     text-transform: uppercase;
     transition: all 0.2s;
+    width: 100%;
 }
 .stButton>button:hover {
     border-color: #38bdf8;
@@ -100,15 +102,16 @@ h1, h2, h3 {
     margin-bottom: 5px;
 }
 hr { border-color: #1e293b; }
-.progress-bar-container {
+.progress-container {
     width: 100%;
     background-color: #1e293b;
     border-radius: 2px;
     margin-top: 5px;
+    height: 10px;
+    overflow: hidden;
 }
-.progress-bar-fill {
-    height: 8px;
-    border-radius: 2px;
+.progress-fill {
+    height: 100%;
     transition: width 0.3s ease;
 }
 </style>
@@ -118,289 +121,372 @@ st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 # ==========================================
 # GAME CONSTANTS & DATABASES
 # ==========================================
-SCRAP_TYPES = {
-    "Iron-Carbon Debris": {"base_val": 10, "weight": 2.0, "rarity": 1, "desc": "Common starship hull fragments."},
-    "Copper Wiring Spools": {"base_val": 25, "weight": 1.5, "rarity": 1, "desc": "Conductive materials stripped from derelicts."},
-    "Titanium Struts": {"base_val": 50, "weight": 4.0, "rarity": 2, "desc": "Heavy structural aerospace supports."},
-    "Quantum Circuitry": {"base_val": 120, "weight": 0.5, "rarity": 3, "desc": "Fragile computing cores. High value, low mass."},
-    "Isotope Batteries": {"base_val": 300, "weight": 5.0, "rarity": 4, "desc": "Highly volatile, incredibly valuable power cells."},
-    "Dark Matter Shard": {"base_val": 1500, "weight": 1.0, "rarity": 5, "desc": "Anomalous material defying standard physics."}
+SCRAP_DB = {
+    "Iron-Carbon": {"base": 15, "volatility": 0.05, "weight": 2.0, "rarity": 1},
+    "Copper Spools": {"base": 30, "volatility": 0.08, "weight": 1.5, "rarity": 1},
+    "Titanium Struts": {"base": 75, "volatility": 0.12, "weight": 4.0, "rarity": 2},
+    "Quantum Circuits": {"base": 180, "volatility": 0.25, "weight": 0.5, "rarity": 3},
+    "Isotope Cells": {"base": 400, "volatility": 0.40, "weight": 5.0, "rarity": 4},
+    "Dark Matter": {"base": 2500, "volatility": 0.60, "weight": 1.0, "rarity": 5}
 }
 
 UPGRADE_TREE = {
     "hull": {
-        "name": "Hull Plating",
-        "desc": "Increases max Hull Integrity to survive hazards.",
-        "base_cost": 500,
-        "cost_mult": 1.8,
-        "effect": 50 # +50 Max Hull per level
+        "name": "Ablative Armor",
+        "desc": "Increases max Hull Integrity.",
+        "base_cost": 500, "cost_mult": 1.8, "effect": 75
     },
     "fuel": {
-        "name": "Delta-v Fuel Tanks",
-        "desc": "Expands propellant capacity for deeper orbital dives.",
-        "base_cost": 400,
-        "cost_mult": 1.5,
-        "effect": 100 # +100 Max Fuel per level
+        "name": "Propellant Tanks",
+        "desc": "Expands Delta-v capacity.",
+        "base_cost": 400, "cost_mult": 1.5, "effect": 150
     },
     "cargo": {
-        "name": "Cargo Bay Expansion",
-        "desc": "Increases maximum tonnage capacity for salvage.",
-        "base_cost": 750,
-        "cost_mult": 1.6,
-        "effect": 25 # +25 Max Weight per level
+        "name": "Void Cargo Bay",
+        "desc": "Increases maximum tonnage capacity.",
+        "base_cost": 800, "cost_mult": 1.7, "effect": 35
     },
     "sohc4v": {
-        "name": "SOHC-4V Plasma Valvetrain",
-        "desc": "Advanced engine configuration with 4-valve cylinder vectors. Reduces fuel consumption by 15% per level.",
-        "base_cost": 1500,
-        "cost_mult": 2.5,
-        "effect": 0.15 # 15% reduction per level
+        "name": "SOHC-4V Plasma Head",
+        "desc": "Single Overhead Cam with 4-valve cylinder vectors. Highly efficient. Reduces fuel consumption by 12% per level.",
+        "base_cost": 1500, "cost_mult": 2.2, "effect": 0.12
     },
-    "loot_scanner": {
-        "name": "L.O.O.T. Observation Engine",
-        "desc": "Logistical Observation array. Increases chances of finding rare anomalies and high-tier scrap.",
-        "base_cost": 2000,
-        "cost_mult": 2.2,
-        "effect": 1 # +1 Bonus Roll on loot tables
+    "radar": {
+        "name": "L.O.O.T. Array",
+        "desc": "Logistical Observation array. Extends radar range and rare anomaly detection.",
+        "base_cost": 2000, "cost_mult": 2.5, "effect": 1
     },
-    "apex_matrix": {
-        "name": "A.P.E.X. Co-Processor",
-        "desc": "Advanced Predictive Executive Matrix. Automatically evades 10% of hazards per level.",
-        "base_cost": 5000,
-        "cost_mult": 3.0,
-        "effect": 0.10 # 10% dodge chance per level
+    "weapons": {
+        "name": "Kinetic Interceptors",
+        "desc": "Automated defense cannons. Increases combat survival rate.",
+        "base_cost": 1200, "cost_mult": 2.0, "effect": 15 # +15 Damage output
+    },
+    "apex": {
+        "name": "A.P.E.X. Core",
+        "desc": "Advanced Predictive Executive Matrix. Provides tactical evasion and automated system repairs.",
+        "base_cost": 5000, "cost_mult": 3.0, "effect": 0.08 # 8% dodge and regen per level
     }
 }
 
 # ==========================================
 # CORE CLASSES
 # ==========================================
+class DynamicMarket:
+    def __init__(self):
+        # Store historical prices for the chart
+        self.history = {k: [v['base']] for k, v in SCRAP_DB.items()}
+        self.current_prices = {k: v['base'] for k, v in SCRAP_DB.items()}
+        self.trend_cycles = {k: 0 for k in SCRAP_DB.items()}
+
+    def simulate_cycle(self):
+        # Shifts prices based on volatility and random walk
+        for item, data in SCRAP_DB.items():
+            base = data['base']
+            volatility = data['volatility']
+            
+            # Create market momentum
+            if random.random() > 0.8: 
+                self.trend_cycles[item] = random.choice([-1, 1]) * random.uniform(0.5, 2.0)
+            
+            trend = self.trend_cycles.get(item, 0)
+            shift = random.uniform(-volatility, volatility) + (trend * 0.05)
+            
+            new_price = self.current_prices[item] * (1 + shift)
+            
+            # Price bounds (can't crash to 0, can't go higher than 4x base)
+            new_price = max(base * 0.2, min(base * 4.0, new_price))
+            self.current_prices[item] = int(new_price)
+            
+            self.history[item].append(self.current_prices[item])
+            # Keep history manageable
+            if len(self.history[item]) > 20:
+                self.history[item].pop(0)
+
 class SalvageShip:
     def __init__(self):
         self.credits = 0
-        self.depth_au = 0.0 # Orbital Depth from Station
-        self.max_depth_record = 0.0
+        self.depth_au = 0.0 
+        self.max_depth = 0.0
         
-        # Upgrades Dictionary (Level ints)
         self.upgrades = {k: 0 for k in UPGRADE_TREE.keys()}
+        self.cargo = [] 
+        self.radar_data = [] 
+        self.log = ["A.P.E.X. Matrix Online.", "Awaiting Launch sequence."]
         
-        # Current Vitals
+        # Combat / Vitals
         self.hull = self.get_max_hull()
         self.fuel = self.get_max_fuel()
-        
-        # Inventory List of Dicts
-        self.cargo = [] 
-        
-        self.log = ["A.P.E.X. Matrix Initialized.", "Vessel docked at Station Alpha."]
-        self.radar_data = [] # Stores active blips
+        self.hostile_encounter = None # Stores active enemy dict
 
-    def get_max_hull(self):
-        return 100 + (self.upgrades['hull'] * UPGRADE_TREE['hull']['effect'])
+    def get_max_hull(self): return 150 + (self.upgrades['hull'] * UPGRADE_TREE['hull']['effect'])
+    def get_max_fuel(self): return 300 + (self.upgrades['fuel'] * UPGRADE_TREE['fuel']['effect'])
+    def get_max_cargo(self): return 50.0 + (self.upgrades['cargo'] * UPGRADE_TREE['cargo']['effect'])
+    def get_firepower(self): return 20 + (self.upgrades['weapons'] * UPGRADE_TREE['weapons']['effect'])
+    
+    def get_fuel_efficiency(self):
+        # SOHC 4V Engine Logic - diminishing returns on efficiency
+        reduction = self.upgrades['sohc4v'] * UPGRADE_TREE['sohc4v']['effect']
+        return max(0.15, 1.0 - reduction)
 
-    def get_max_fuel(self):
-        return 200 + (self.upgrades['fuel'] * UPGRADE_TREE['fuel']['effect'])
+    def get_apex_dodge(self):
+        return min(0.60, self.upgrades['apex'] * UPGRADE_TREE['apex']['effect'])
 
-    def get_max_cargo(self):
-        return 50.0 + (self.upgrades['cargo'] * UPGRADE_TREE['cargo']['effect'])
-
-    def get_current_cargo_weight(self):
+    def get_cargo_weight(self):
         return sum(item['weight'] for item in self.cargo)
 
-    def get_fuel_efficiency(self):
-        # Base fuel consumption is 1.0. SOHC4V reduces it. Max reduction capped at 80%
-        reduction = self.upgrades['sohc4v'] * UPGRADE_TREE['sohc4v']['effect']
-        return max(0.2, 1.0 - reduction)
-
-    def get_dodge_chance(self):
-        return min(0.75, self.upgrades['apex_matrix'] * UPGRADE_TREE['apex_matrix']['effect'])
-
     def add_log(self, msg):
-        timestamp = datetime.datetime.now().strftime('%H:%M:%S')
-        self.log.insert(0, f"[{timestamp}] {msg}")
-        if len(self.log) > 40:
-            self.log.pop()
+        ts = datetime.datetime.now().strftime('%H:%M:%S')
+        self.log.insert(0, f"[{ts}] {msg}")
+        if len(self.log) > 50: self.log.pop()
 
     def take_damage(self, amount, source):
-        # APEX Matrix Dodge Check
-        if random.random() < self.get_dodge_chance():
-            self.add_log(f"⚡ A.P.E.X. MATRIX ENGAGED: Automated thrusters evaded {source}!")
+        if random.random() < self.get_apex_dodge():
+            self.add_log(f"⚡ A.P.E.X. MATRIX: Micro-thrusters evaded {source}!")
             return False
             
         self.hull -= amount
-        self.add_log(f"💥 HULL BREACH: Took {amount} damage from {source}! Hull at {self.hull}/{self.get_max_hull()}.")
+        self.add_log(f"💥 BREACH: Took {amount} DMG from {source}. Hull: {self.hull}/{self.get_max_hull()}")
         
         if self.hull <= 0:
             self.handle_destruction()
         return True
 
     def handle_destruction(self):
-        self.add_log("💀 CRITICAL FAILURE: VESSEL DESTROYED.")
-        lost_value = sum(item['val'] for item in self.cargo)
-        self.add_log(f"💀 EMERGENCY POD EJECTED. Lost {len(self.cargo)} items worth {lost_value} Credits.")
-        
-        # Reset Ship to Station
+        self.add_log("💀 FATAL: VESSEL DESTROYED. Emergency Pod deployed.")
         self.depth_au = 0.0
         self.cargo = []
         self.radar_data = []
+        self.hostile_encounter = None
         self.hull = self.get_max_hull()
         self.fuel = self.get_max_fuel()
+        st.session_state.market.simulate_cycle() # Market shifts while you recover
 
 # ==========================================
-# GAME ENGINE LOGIC
+# GAME ENGINE FUNCTIONS
 # ==========================================
-def calculate_upgrade_cost(upg_id, current_level):
-    base = UPGRADE_TREE[upg_id]['base_cost']
-    mult = UPGRADE_TREE[upg_id]['cost_mult']
-    return int(base * (mult ** current_level))
-
-def generate_radar_blips(depth, loot_engine_level):
+def scan_sector(ship):
     blips = []
-    num_blips = random.randint(2, 5 + int(depth/10))
+    radar_lvl = ship.upgrades['radar']
+    num_blips = random.randint(3, 6 + radar_lvl)
     
     for _ in range(num_blips):
         angle = random.uniform(0, 360)
-        distance = random.uniform(1, 10)
+        distance = random.uniform(1.0, 10.0 + (radar_lvl * 2.0))
         
-        # Higher depth = better rarity chances
-        base_roll = random.random() + (depth * 0.02) + (loot_engine_level * 0.05)
+        # Depth + Radar level increases rare loot chance
+        roll = random.random() + (ship.depth_au * 0.01) + (radar_lvl * 0.03)
         
-        if base_roll > 0.95:
-            rarity = 5
-            color = "#a855f7" # Purple (Legendary)
-            name = "Dark Matter Anomaly"
-        elif base_roll > 0.80:
-            rarity = 4
-            color = "#f59e0b" # Orange (Epic)
-            name = "High-Energy Signature"
-        elif base_roll > 0.50:
-            rarity = 3
-            color = "#3b82f6" # Blue (Rare)
-            name = "Dense Alloy Deposit"
-        elif base_roll > 0.20:
-            rarity = 2
-            color = "#10b981" # Green (Uncommon)
-            name = "Structural Debris"
-        else:
-            rarity = 1
-            color = "#94a3b8" # Grey (Common)
-            name = "Scattered Scrap"
+        if roll > 0.96: r, c, n = 5, "#a855f7", "Dark Matter Anomaly"
+        elif roll > 0.82: r, c, n = 4, "#f59e0b", "High-Energy Signature"
+        elif roll > 0.55: r, c, n = 3, "#3b82f6", "Encrypted Wreckage"
+        elif roll > 0.25: r, c, n = 2, "#10b981", "Reinforced Struts"
+        else: r, c, n = 1, "#94a3b8", "Generic Scrap"
             
-        blips.append({"angle": angle, "dist": distance, "rarity": rarity, "color": color, "name": name, "harvested": False})
-        
-    return blips
-
-def harvest_blip(ship, blip_index):
-    if blip_index >= len(ship.radar_data) or ship.radar_data[blip_index]['harvested']:
-        return
-        
-    blip = ship.radar_data[blip_index]
-    fuel_cost = int(blip['dist'] * 2 * ship.get_fuel_efficiency())
+        blips.append({"angle": angle, "dist": distance, "rarity": r, "color": c, "name": n, "harvested": False})
     
+    ship.radar_data = blips
+    ship.add_log(f"📡 L.O.O.T. ARRAY: Sector scanned. {len(blips)} signatures found.")
+
+def trigger_encounter(ship):
+    # 25% chance of hostile encounter when moving deeper
+    if random.random() > 0.75:
+        enemy_types = [
+            {"name": "Rogue Mining Drone", "hp": 40, "dmg": 15},
+            {"name": "Pirate Interceptor", "hp": 80, "dmg": 30},
+            {"name": "Automated Defense Platform", "hp": 150, "dmg": 50}
+        ]
+        
+        # Scale enemies by depth
+        tier = min(2, int(ship.depth_au / 15))
+        base_enemy = enemy_types[tier]
+        
+        ship.hostile_encounter = {
+            "name": base_enemy["name"],
+            "hp": base_enemy["hp"] + int(ship.depth_au * 2),
+            "dmg": base_enemy["dmg"] + int(ship.depth_au)
+        }
+        ship.add_log(f"🚨 HOSTILE DETECTED: {ship.hostile_encounter['name']} closing in!")
+
+def execute_combat_round(ship):
+    enemy = ship.hostile_encounter
+    if not enemy: return
+    
+    # Ship fires first
+    dmg_dealt = int(ship.get_firepower() * random.uniform(0.8, 1.2))
+    enemy['hp'] -= dmg_dealt
+    ship.add_log(f"⚔️ KINETIC CANNONS: Dealt {dmg_dealt} DMG to {enemy['name']}.")
+    
+    if enemy['hp'] <= 0:
+        ship.add_log(f"✅ THREAT NEUTRALIZED: {enemy['name']} destroyed.")
+        ship.hostile_encounter = None
+        # Reward
+        bounty = int(enemy['dmg'] * 5 * (1 + (ship.depth_au*0.1)))
+        ship.credits += bounty
+        ship.add_log(f"💰 BOUNTY CLAIMED: {bounty} CR.")
+        return
+
+    # Enemy returns fire
+    dmg_taken = int(enemy['dmg'] * random.uniform(0.8, 1.2))
+    ship.take_damage(dmg_taken, enemy['name'])
+
+def evade_combat(ship):
+    fuel_cost = int(40 * ship.get_fuel_efficiency())
     if ship.fuel < fuel_cost:
-        ship.add_log(f"⚠️ INSUFFICIENT FUEL: Need {fuel_cost} Delta-v to reach signature.")
+        ship.add_log("⚠️ CANNOT EVADE: Insufficient Delta-v!")
+        execute_combat_round(ship)
         return
         
     ship.fuel -= fuel_cost
+    if random.random() < 0.5 + ship.get_apex_dodge():
+        ship.add_log("💨 EVASION SUCCESSFUL: Broke enemy lock.")
+        ship.hostile_encounter = None
+    else:
+        ship.add_log("❌ EVASION FAILED: Enemy maintains pursuit!")
+        execute_combat_round(ship)
+
+def harvest_target(ship, blip_idx):
+    if ship.hostile_encounter:
+        ship.add_log("⚠️ CANNOT HARVEST: Hostile active in sector!")
+        return
+
+    blip = ship.radar_data[blip_idx]
+    f_cost = int(blip['dist'] * 3 * ship.get_fuel_efficiency())
+    
+    if ship.fuel < f_cost:
+        ship.add_log(f"⚠️ LOW FUEL: Need {f_cost} Delta-v.")
+        return
+        
+    ship.fuel -= f_cost
     blip['harvested'] = True
     
-    # Hazard check while moving to harvest
-    hazard_chance = 0.10 + (ship.depth_au * 0.005)
-    if random.random() < hazard_chance:
-        dmg = random.randint(10, 30 + int(ship.depth_au))
-        if ship.take_damage(dmg, "Micrometeoroid Swarm"):
-            if ship.hull <= 0: return # Dead, stop harvesting
+    # Hazard check
+    if random.random() < 0.15 + (ship.depth_au * 0.005):
+        ship.take_damage(random.randint(15, 35), "Debris Collision")
+        if ship.hull <= 0: return 
             
-    # Generate actual scrap from the blip's rarity pool
-    possible_scrap = [k for k, v in SCRAP_TYPES.items() if v['rarity'] <= blip['rarity']]
-    if not possible_scrap: possible_scrap = ["Iron-Carbon Debris"]
+    # Generate Loot
+    pool = [k for k, v in SCRAP_DB.items() if v['rarity'] <= blip['rarity']]
+    if not pool: pool = ["Iron-Carbon"]
     
-    scrap_name = random.choice(possible_scrap)
-    scrap_data = SCRAP_TYPES[scrap_name]
+    item = random.choice(pool)
+    weight = SCRAP_DB[item]['weight']
     
-    # Value scales slightly with depth
-    final_val = int(scrap_data['base_val'] * (1 + (ship.depth_au * 0.05)))
-    
-    if ship.get_current_cargo_weight() + scrap_data['weight'] > ship.get_max_cargo():
-        ship.add_log(f"📦 CARGO FULL: Cannot load {scrap_name} ({scrap_data['weight']}t).")
+    if ship.get_cargo_weight() + weight > ship.get_max_cargo():
+        ship.add_log(f"📦 HOLD FULL: Cannot fit {item} ({weight}t).")
     else:
-        ship.cargo.append({"name": scrap_name, "val": final_val, "weight": scrap_data['weight']})
-        ship.add_log(f"✅ HARVESTED: {scrap_name} | Value: {final_val} CR | Mass: {scrap_data['weight']}t")
+        # We store the base item type. Price is calculated at the station via Market
+        ship.cargo.append({"name": item, "weight": weight})
+        ship.add_log(f"✅ SECURED: {item} | Mass: {weight}t")
 
-def advance_orbit(ship):
-    fuel_cost = int(25 * ship.get_fuel_efficiency())
-    if ship.fuel < fuel_cost:
-        ship.add_log(f"⚠️ INSUFFICIENT FUEL: Need {fuel_cost} Delta-v to push orbit.")
+def push_orbit(ship):
+    if ship.hostile_encounter:
+        ship.add_log("⚠️ CANNOT BURN: Hostile active in sector!")
+        return
+
+    f_cost = int(35 * ship.get_fuel_efficiency())
+    if ship.fuel < f_cost:
+        ship.add_log(f"⚠️ LOW FUEL: Need {f_cost} Delta-v for Prograde Burn.")
         return
         
-    ship.fuel -= fuel_cost
-    ship.depth_au += random.uniform(1.5, 3.5)
-    ship.max_depth_record = max(ship.max_depth_record, ship.depth_au)
+    ship.fuel -= f_cost
+    ship.depth_au += random.uniform(2.0, 5.0)
+    ship.max_depth = max(ship.max_depth, ship.depth_au)
     
-    ship.add_log(f"🚀 ORBITAL BURN EXECUTED. Pushing deeper into the void. Current Depth: {ship.depth_au:.1f} AU.")
+    ship.add_log(f"🚀 PROGRADE BURN: Pushing to {ship.depth_au:.1f} AU.")
     
-    # Trigger Event/Hazard based on depth
-    event_roll = random.random()
-    if event_roll < 0.15 + (ship.depth_au * 0.002):
-        events = [
-            ("Coronal Mass Ejection", random.randint(20, 50 + int(ship.depth_au))),
-            ("Rogue Drone Strike", random.randint(15, 40)),
-            ("Navigational Error (Asteroid Collision)", random.randint(30, 70))
-        ]
-        hazard, dmg = random.choice(events)
-        ship.take_damage(dmg, hazard)
-        
-    # Generate new local space radar
-    ship.radar_data = generate_radar_blips(ship.depth_au, ship.upgrades['loot_scanner'])
-    ship.add_log(f"📡 L.O.O.T. ENGINE: Scanned local sector. Found {len(ship.radar_data)} anomalous signatures.")
+    # A.P.E.X passive healing
+    heal = int(ship.get_max_hull() * (ship.upgrades['apex'] * 0.05))
+    if heal > 0 and ship.hull < ship.get_max_hull():
+        ship.hull = min(ship.get_max_hull(), ship.hull + heal)
+        ship.add_log(f"🔧 A.P.E.X. Auto-Repair restored {heal} Hull.")
 
-def return_to_station(ship):
-    # Cost to return scales with depth
-    fuel_cost = int((ship.depth_au * 2) * ship.get_fuel_efficiency())
+    scan_sector(ship)
+    trigger_encounter(ship)
+
+def return_to_base(ship, market):
+    if ship.hostile_encounter:
+        ship.add_log("⚠️ CANNOT DOCK: Hostile active in sector!")
+        return
+
+    f_cost = int((ship.depth_au * 2.5) * ship.get_fuel_efficiency())
     
-    if ship.fuel < fuel_cost:
-        ship.add_log(f"🚨 FATAL ERROR: Insufficient Delta-v for Retrograde Burn (Needs {fuel_cost}). Vessel is drifting.")
-        ship.take_damage(9999, "Deep Space Starvation")
+    if ship.fuel < f_cost:
+        ship.add_log(f"🚨 CRITICAL: Insufficient Delta-v for Retrograde. Drifting...")
+        ship.take_damage(9999, "Void Starvation")
         return
         
-    ship.fuel -= fuel_cost
+    ship.fuel -= f_cost
     ship.depth_au = 0.0
     ship.radar_data = []
     
-    # Sell Cargo
-    total_sale = sum(item['val'] for item in ship.cargo)
-    ship.credits += total_sale
-    items_count = len(ship.cargo)
+    ship.add_log("🌌 RETROGRADE BURN SUCCESS. Docked at Station Alpha.")
+    
+    # Calculate payout based on CURRENT market prices
+    total_payout = 0
+    item_counts = {}
+    for item in ship.cargo:
+        name = item['name']
+        price = market.current_prices[name]
+        total_payout += price
+        item_counts[name] = item_counts.get(name, 0) + 1
+        
+    if total_payout > 0:
+        ship.credits += total_payout
+        manifest_str = ", ".join([f"{k}x{v}" for k,v in item_counts.items()])
+        ship.add_log(f"💰 MARKET SALE: {manifest_str}")
+        ship.add_log(f"💰 TOTAL PROFIT: {total_payout:,.0f} CR.")
+    
     ship.cargo = []
-    
-    ship.add_log(f"🌌 RETROGRADE BURN SUCCESSFUL. Docked at Station Alpha.")
-    if items_count > 0:
-        ship.add_log(f"💰 MARKET EXCHANGE: Sold {items_count} units of scrap for {total_sale} Credits.")
-    
-    # Auto-Repair & Refuel at station
     ship.hull = ship.get_max_hull()
     ship.fuel = ship.get_max_fuel()
-    ship.add_log("🔧 Automated systems refueled and repaired hull to 100%.")
+    
+    # Simulate market changing while you were away
+    market.simulate_cycle()
 
 # ==========================================
 # UI RENDERING HELPERS
 # ==========================================
-def render_progress_bar(current, maximum, color_hex):
+def render_bar(current, maximum, color):
     pct = min(100, max(0, int((current / maximum) * 100)))
     st.markdown(f"""
-    <div class="progress-bar-container">
-        <div class="progress-bar-fill" style="width: {pct}%; background-color: {color_hex};"></div>
+    <div class="progress-container">
+        <div class="progress-fill" style="width: {pct}%; background-color: {color};"></div>
     </div>
-    <div style="font-size:10px; color:#94a3b8; text-align:right; margin-top:2px;">{current:.1f} / {maximum:.1f}</div>
+    <div style="font-size:11px; color:#94a3b8; text-align:right;">{current:.1f} / {maximum:.1f}</div>
     """, unsafe_allow_html=True)
 
-def render_radar_plot(radar_data):
-    if not radar_data:
-        # Empty radar screen
+def render_market_chart(market):
+    fig = go.Figure()
+    colors = ["#94a3b8", "#fca5a5", "#cbd5e1", "#818cf8", "#fde047", "#c084fc"]
+    for idx, (item, history) in enumerate(market.history.items()):
+        # Only plot the last 15 ticks for cleanliness
+        y_data = history[-15:] if len(history) > 15 else history
+        x_data = list(range(len(y_data)))
+        fig.add_trace(go.Scatter(
+            x=x_data, y=y_data, mode='lines+markers', name=item,
+            line=dict(color=colors[idx % len(colors)], width=2),
+            marker=dict(size=6)
+        ))
+    
+    fig.update_layout(
+        title="Live Commodity Pricing (Station Alpha)",
+        title_font=dict(color="#38bdf8", family="Rajdhani"),
+        paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+        font=dict(color="#cbd5e1"),
+        xaxis=dict(showgrid=False, visible=False),
+        yaxis=dict(gridcolor="#1e293b"),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        margin=dict(l=10, r=10, t=50, b=10),
+        height=300
+    )
+    return fig
+
+def render_radar(ship):
+    if ship.depth_au == 0 or not ship.radar_data:
         fig = go.Figure()
         fig.add_trace(go.Scatterpolar(r=[0], theta=[0], mode='markers', marker=dict(color='#38bdf8', size=10, symbol='cross'), name='Vessel'))
     else:
-        # Filter unharvested
-        active = [b for b in radar_data if not b['harvested']]
+        active = [b for b in ship.radar_data if not b['harvested']]
         if not active:
              fig = go.Figure()
              fig.add_trace(go.Scatterpolar(r=[0], theta=[0], mode='markers', marker=dict(color='#38bdf8', size=10, symbol='cross'), name='Vessel'))
@@ -408,195 +494,184 @@ def render_radar_plot(radar_data):
             r = [b['dist'] for b in active]
             theta = [b['angle'] for b in active]
             colors = [b['color'] for b in active]
-            sizes = [b['rarity'] * 4 + 6 for b in active]
+            sizes = [b['rarity'] * 3 + 8 for b in active]
             names = [b['name'] for b in active]
             
             fig = go.Figure()
-            # The Ship
-            fig.add_trace(go.Scatterpolar(r=[0], theta=[0], mode='markers', marker=dict(color='#38bdf8', size=12, symbol='cross'), hoverinfo='text', text='A.P.E.X. VESSEL', showlegend=False))
-            # The Blips
+            fig.add_trace(go.Scatterpolar(r=[0], theta=[0], mode='markers', marker=dict(color='#38bdf8', size=12, symbol='cross'), hoverinfo='text', text='A.P.E.X. VESSEL'))
             fig.add_trace(go.Scatterpolar(
                 r=r, theta=theta, mode='markers',
                 marker=dict(color=colors, size=sizes, opacity=0.8, line=dict(color='#e2e8f0', width=1)),
-                hoverinfo='text', text=names, showlegend=False
+                hoverinfo='text', text=names
             ))
 
     fig.update_layout(
         polar=dict(
-            radialaxis=dict(visible=True, range=[0, 10], gridcolor='#1e293b', tickfont=dict(color='#475569')),
+            radialaxis=dict(visible=True, range=[0, 15], gridcolor='#1e293b', tickfont=dict(color='#475569')),
             angularaxis=dict(gridcolor='#1e293b', tickfont=dict(color='#475569')),
             bgcolor='#020617'
         ),
-        showlegend=False,
-        paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)',
-        margin=dict(l=20, r=20, t=20, b=20),
-        height=350
+        showlegend=False, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+        margin=dict(l=20, r=20, t=20, b=20), height=350
     )
     return fig
 
 # ==========================================
-# MAIN APP EXECUTION
+# MAIN EXECUTION
 # ==========================================
 def main():
-    # 1. State Initialization
     if 'ship' not in st.session_state:
         st.session_state.ship = SalvageShip()
-    
-    ship = st.session_state.ship
-
-    # 2. Top Header Metrics
-    st.markdown("<h1>🌌 A.P.E.X. VOID SCAVENGER</h1>", unsafe_allow_html=True)
-    
-    with st.expander("📖 FLIGHT MANUAL & SYSTEMS GUIDE", expanded=False):
-        st.markdown("""
-        **MISSION:** Push deeper into the void. Scan for scrap. Survive. Return to base to upgrade.
-        * **Delta-v (Fuel):** Moving deeper costs fuel. Scanning nodes costs fuel. *Returning to base costs massive fuel based on your depth.* Do not get stranded.
-        * **Hull:** If it hits zero, your ship is destroyed. You lose all cargo in your hold and are towed back to base. Upgrades and Credits are kept.
-        * **L.O.O.T. Radar:** Displays anomalies around your ship. Further blips cost more fuel to reach. Purple/Orange blips are highly valuable.
-        * **The Shipyard:** Only accessible when docked at Station Alpha (Depth 0.0 AU). Spend credits to scale your ship infinitely.
-        """)
-
-    c1, c2, c3, c4 = st.columns(4)
-    with c1:
-        st.markdown(f"""
-        <div class="metric-box">
-            <div class="metric-title">Orbital Depth</div>
-            <div class="metric-value" style="color:#a78bfa;">{ship.depth_au:.1f} AU</div>
-            <div style="font-size:10px; color:#64748b;">Record: {ship.max_depth_record:.1f} AU</div>
-        </div>
-        """, unsafe_allow_html=True)
-    with c2:
-        hull_danger = "danger" if ship.hull < ship.get_max_hull() * 0.3 else ""
-        st.markdown(f'<div class="metric-box {hull_danger}"><div class="metric-title">Hull Integrity</div></div>', unsafe_allow_html=True)
-        render_progress_bar(ship.hull, ship.get_max_hull(), "#10b981" if not hull_danger else "#ef4444")
-    with c3:
-        fuel_pct = ship.fuel / ship.get_max_fuel()
-        fuel_color = "#38bdf8" if fuel_pct > 0.4 else "#f59e0b"
-        st.markdown('<div class="metric-box"><div class="metric-title">Delta-v Propellant</div></div>', unsafe_allow_html=True)
-        render_progress_bar(ship.fuel, ship.get_max_fuel(), fuel_color)
-    with c4:
-        st.markdown(f"""
-        <div class="metric-box">
-            <div class="metric-title">Available Credits</div>
-            <div class="metric-value" style="color:#fbbf24;">{ship.credits:,.0f} CR</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    # 3. Main Dashboard Layout
-    col_nav, col_radar, col_log = st.columns([1.2, 1.5, 1.2])
-
-    # --- LEFT COLUMN: NAVIGATION & ACTIONS ---
-    with col_nav:
-        st.markdown("### 🎛️ FLIGHT CONSOLE")
-        if ship.depth_au == 0:
-            st.info("🟢 DOCKED AT STATION ALPHA")
-            st.markdown("<div class='action-btn'>", unsafe_allow_html=True)
-            if st.button("🚀 LAUNCH INTO THE VOID", use_container_width=True):
-                advance_orbit(ship)
-                st.rerun()
-            st.markdown("</div>", unsafe_allow_html=True)
-        else:
-            st.warning("⚠️ IN HOSTILE SPACE")
-            st.markdown("<div class='action-btn'>", unsafe_allow_html=True)
-            if st.button("🔥 BURN PROGRADE (GO DEEPER)", use_container_width=True):
-                advance_orbit(ship)
-                st.rerun()
-            st.markdown("</div>", unsafe_allow_html=True)
-            
-            st.markdown("<br>", unsafe_allow_html=True)
-            
-            # Calculate return cost to show user
-            ret_cost = int((ship.depth_au * 2) * ship.get_fuel_efficiency())
-            btn_text = f"🔄 BURN RETROGRADE (RETURN)\n[Cost: {ret_cost} Fuel]"
-            
-            st.markdown("<div class='danger-btn'>", unsafe_allow_html=True)
-            if st.button(btn_text, use_container_width=True):
-                return_to_station(ship)
-                st.rerun()
-            st.markdown("</div>", unsafe_allow_html=True)
-
-        st.markdown("<hr>", unsafe_allow_html=True)
-        st.markdown("### 📦 CARGO HOLD")
-        c_weight = ship.get_current_cargo_weight()
-        c_max = ship.get_max_cargo()
-        render_progress_bar(c_weight, c_max, "#8b5cf6")
+    if 'market' not in st.session_state:
+        st.session_state.market = DynamicMarket()
         
-        with st.expander(f"View Manifest ({len(ship.cargo)} Items)"):
-            if not ship.cargo:
-                st.write("Hold is empty.")
-            else:
-                for item in ship.cargo:
-                    st.markdown(f"<div style='font-size:11px; margin-bottom:4px;'>• <b>{item['name']}</b> [{item['weight']}t] - {item['val']} CR</div>", unsafe_allow_html=True)
+    ship = st.session_state.ship
+    market = st.session_state.market
 
-    # --- CENTER COLUMN: L.O.O.T. RADAR ---
-    with col_radar:
-        st.markdown("### 📡 L.O.O.T. ARRAY")
+    st.markdown("<h1>🌌 A.P.E.X. VOID DRIFT</h1>", unsafe_allow_html=True)
+
+    # Top Vitals (Mobile Friendly Grid)
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown(f'<div class="metric-box"><div class="metric-title">Depth / Record</div><div class="metric-value" style="color:#a78bfa;">{ship.depth_au:.1f} / {ship.max_depth:.1f} AU</div></div>', unsafe_allow_html=True)
+        h_color = "#10b981" if ship.hull > ship.get_max_hull()*0.4 else "#ef4444"
+        st.markdown('<div class="metric-box"><div class="metric-title">Hull Integrity</div></div>', unsafe_allow_html=True)
+        render_bar(ship.hull, ship.get_max_hull(), h_color)
+    with col2:
+        st.markdown(f'<div class="metric-box"><div class="metric-title">Credits</div><div class="metric-value" style="color:#fbbf24;">{ship.credits:,.0f} CR</div></div>', unsafe_allow_html=True)
+        f_color = "#38bdf8" if ship.fuel > ship.get_max_fuel()*0.3 else "#f59e0b"
+        st.markdown('<div class="metric-box"><div class="metric-title">Delta-v Propellant</div></div>', unsafe_allow_html=True)
+        render_bar(ship.fuel, ship.get_max_fuel(), f_color)
+
+    st.markdown("<hr>", unsafe_allow_html=True)
+
+    # Main Tabs for better mobile layout
+    tab_nav, tab_radar, tab_eng, tab_market = st.tabs(["🎛️ FLIGHT CONSOLE", "📡 L.O.O.T. ARRAY", "🛠️ ENGINEERING", "📈 MARKET"])
+
+    # --- TAB 1: FLIGHT CONSOLE & COMBAT ---
+    with tab_nav:
+        c_act, c_log = st.columns([1, 1.5])
+        with c_act:
+            st.markdown("### OPERATIONS")
+            if ship.hostile_encounter:
+                st.error(f"🚨 UNDER ATTACK: {ship.hostile_encounter['name']} (HP: {ship.hostile_encounter['hp']})")
+                if st.button("⚔️ FIRE KINETIC CANNONS", key="btn_atk"):
+                    execute_combat_round(ship)
+                    st.rerun()
+                if st.button("💨 EVASIVE MANEUVERS", key="btn_evade"):
+                    evade_combat(ship)
+                    st.rerun()
+            else:
+                if ship.depth_au == 0:
+                    st.info("🟢 DOCKED AT STATION ALPHA")
+                    st.markdown("<div class='action-btn'>", unsafe_allow_html=True)
+                    if st.button("🚀 LAUNCH INTO THE VOID"):
+                        push_orbit(ship)
+                        st.rerun()
+                    st.markdown("</div>", unsafe_allow_html=True)
+                else:
+                    st.warning(f"⚠️ DEEP SPACE (Tension: {min(100, int(ship.depth_au * 2))}%)")
+                    st.markdown("<div class='action-btn'>", unsafe_allow_html=True)
+                    if st.button("🔥 BURN PROGRADE (DEEPER)"):
+                        push_orbit(ship)
+                        st.rerun()
+                    st.markdown("</div>", unsafe_allow_html=True)
+                    
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    ret_cost = int((ship.depth_au * 2.5) * ship.get_fuel_efficiency())
+                    st.markdown("<div class='danger-btn'>", unsafe_allow_html=True)
+                    if st.button(f"🔄 BURN RETROGRADE (RETURN) [F: {ret_cost}]"):
+                        return_to_base(ship, market)
+                        st.rerun()
+                    st.markdown("</div>", unsafe_allow_html=True)
+
+            st.markdown("<hr>", unsafe_allow_html=True)
+            st.markdown("### CARGO HOLD")
+            render_bar(ship.get_cargo_weight(), ship.get_max_cargo(), "#8b5cf6")
+            # Removed markdown icons in expander to fix mobile bug
+            with st.expander(f"Manifest [{len(ship.cargo)} Items]"):
+                if not ship.cargo: st.write("Hold empty.")
+                else:
+                    for i in ship.cargo: st.markdown(f"<span style='font-size:12px;'>• {i['name']} ({i['weight']}t)</span>", unsafe_allow_html=True)
+
+        with c_log:
+            st.markdown("### A.P.E.X. MATRIX LOG")
+            log_html = "<br>".join([f"<span>{line}</span>" for line in ship.log])
+            st.markdown(f"<div class='console-log'>{log_html}</div>", unsafe_allow_html=True)
+
+    # --- TAB 2: L.O.O.T. RADAR ---
+    with tab_radar:
         if ship.depth_au == 0:
-            st.markdown("<div style='text-align:center; padding:50px; color:#475569;'>Radar Offline. Launch to enable.</div>", unsafe_allow_html=True)
+            st.markdown("<div style='text-align:center; padding:40px; color:#475569;'>Radar Offline. Launch to engage.</div>", unsafe_allow_html=True)
         else:
-            fig = render_radar_plot(ship.radar_data)
+            fig = render_radar(ship)
             st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
             
-            # Harvest Controls
-            active_blips = [i for i, b in enumerate(ship.radar_data) if not b['harvested']]
-            if active_blips:
-                st.markdown("<p style='font-size:12px; color:#94a3b8; margin-bottom:2px;'>TARGET LOCK AQUIRED:</p>", unsafe_allow_html=True)
-                cols = st.columns(3)
-                for i, blip_idx in enumerate(active_blips[:6]): # Max 6 harvest buttons shown
-                    b = ship.radar_data[blip_idx]
-                    f_cost = int(b['dist'] * 2 * ship.get_fuel_efficiency())
-                    with cols[i % 3]:
-                        if st.button(f"S_{blip_idx}\n[F:{f_cost}]", key=f"harv_{blip_idx}", use_container_width=True):
-                            harvest_blip(ship, blip_idx)
-                            st.rerun()
+            if not ship.hostile_encounter:
+                active = [i for i, b in enumerate(ship.radar_data) if not b['harvested']]
+                if active:
+                    st.markdown("**DETECTED ANOMALIES (Select to Harvest):**")
+                    cols = st.columns(3)
+                    for i, b_idx in enumerate(active[:9]): # Show max 9 targets
+                        b = ship.radar_data[b_idx]
+                        f_cost = int(b['dist'] * 3 * ship.get_fuel_efficiency())
+                        with cols[i % 3]:
+                            if st.button(f"{b['name'][:8]}..\n[F: {f_cost}]", key=f"harv_{b_idx}"):
+                                harvest_target(ship, b_idx)
+                                st.rerun()
+                else:
+                    st.success("Sector clear of anomalies.")
             else:
-                st.success("Sector clear. No anomalies detected.")
+                st.error("RADAR JAMMED BY HOSTILE FORCES.")
 
-    # --- RIGHT COLUMN: EVENT LOG ---
-    with col_log:
-        st.markdown("### 🖥️ A.P.E.X. MATRIX LOG")
-        log_html = "<br>".join([f"<span>{line}</span>" for line in ship.log])
-        st.markdown(f"<div class='console-log'>{log_html}</div>", unsafe_allow_html=True)
-
-
-    # 4. STATION UPGRADE UI (Only visible at Depth 0)
-    if ship.depth_au == 0:
-        st.markdown("<hr><br>", unsafe_allow_html=True)
-        st.markdown("<h2>🛠️ STATION ALPHA SHIPYARD</h2>", unsafe_allow_html=True)
-        st.markdown("<p style='color:#94a3b8;'>Upgrade your vessel architecture. Costs scale exponentially.</p>", unsafe_allow_html=True)
-        
-        u_cols = st.columns(3)
-        
-        for idx, (upg_id, upg_data) in enumerate(UPGRADE_TREE.items()):
-            col = u_cols[idx % 3]
-            current_lvl = ship.upgrades[upg_id]
-            cost = calculate_upgrade_cost(upg_id, current_lvl)
-            
-            with col:
-                st.markdown(f"""
-                <div class="upgrade-card">
-                    <div class="upgrade-title">{upg_data['name']} [LVL {current_lvl}]</div>
-                    <div style="font-size:12px; color:#cbd5e1; margin-bottom:10px; height:40px;">{upg_data['desc']}</div>
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <span style="color:#fbbf24; font-weight:700;">{cost:,} CR</span>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
+    # --- TAB 3: ENGINEERING / UPGRADES ---
+    with tab_eng:
+        if ship.depth_au > 0:
+            st.warning("Must be docked at Station Alpha to access Shipyard.")
+        else:
+            st.markdown("### STATION ALPHA SHIPYARD")
+            u_cols = st.columns(2)
+            for idx, (u_id, u_data) in enumerate(UPGRADE_TREE.items()):
+                lvl = ship.upgrades[u_id]
+                cost = int(u_data['base_cost'] * (u_data['cost_mult'] ** lvl))
                 
-                btn_disabled = ship.credits < cost
-                if st.button(f"UPGRADE {upg_data['name'].split(' ')[0]}", key=f"upg_{upg_id}", disabled=btn_disabled, use_container_width=True):
-                    if ship.credits >= cost:
+                with u_cols[idx % 2]:
+                    st.markdown(f"""
+                    <div class="upgrade-card">
+                        <div class="upgrade-title">{u_data['name']} [LVL {lvl}]</div>
+                        <div style="font-size:12px; color:#cbd5e1; margin-bottom:8px; min-height:45px;">{u_data['desc']}</div>
+                        <div style="color:#fbbf24; font-weight:700; margin-bottom:8px;">{cost:,} CR</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    if st.button(f"INSTALL {u_id.upper()}", key=f"upg_{u_id}", disabled=ship.credits < cost):
                         ship.credits -= cost
-                        ship.upgrades[upg_id] += 1
-                        
-                        # Recalculate vitals to apply immediate max buffs
+                        ship.upgrades[u_id] += 1
                         ship.hull = ship.get_max_hull()
                         ship.fuel = ship.get_max_fuel()
-                        
-                        ship.add_log(f"⚙️ UPGRADE INSTALLED: {upg_data['name']} to Level {current_lvl + 1}.")
+                        ship.add_log(f"⚙️ UPGRADE: {u_data['name']} leveled up.")
                         st.rerun()
+
+    # --- TAB 4: MARKETBOARD ---
+    with tab_market:
+        st.markdown("### COMMODITY EXCHANGE")
+        st.markdown("<p style='font-size:13px; color:#94a3b8;'>Scrap values fluctuate based on station demand. Values shown are per unit.</p>", unsafe_allow_html=True)
+        
+        # Draw the Plotly chart
+        m_fig = render_market_chart(market)
+        st.plotly_chart(m_fig, use_container_width=True, config={'displayModeBar': False})
+        
+        # Display current prices cleanly
+        st.markdown("**Current Market Rates:**")
+        m_cols = st.columns(3)
+        for idx, (item, price) in enumerate(market.current_prices.items()):
+            base = SCRAP_DB[item]['base']
+            color = "#10b981" if price > base else "#ef4444"
+            indicator = "▲" if price > base else "▼"
+            with m_cols[idx % 3]:
+                st.markdown(f"<div style='background:#0f172a; padding:10px; border:1px solid #1e293b; border-radius:4px; margin-bottom:10px;'>"
+                            f"<div style='font-size:11px; color:#94a3b8;'>{item}</div>"
+                            f"<div style='font-size:16px; font-weight:bold; color:{color};'>{price} CR {indicator}</div>"
+                            f"</div>", unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
-
