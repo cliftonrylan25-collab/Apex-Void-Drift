@@ -159,12 +159,12 @@ UPGRADE_TREE = {
     "weapons": {
         "name": "Kinetic Interceptors",
         "desc": "Automated defense cannons. Increases combat survival rate.",
-        "base_cost": 1200, "cost_mult": 2.0, "effect": 15 # +15 Damage output
+        "base_cost": 1200, "cost_mult": 2.0, "effect": 15
     },
     "apex": {
         "name": "A.P.E.X. Core",
         "desc": "Advanced Predictive Executive Matrix. Provides tactical evasion and automated system repairs.",
-        "base_cost": 5000, "cost_mult": 3.0, "effect": 0.08 # 8% dodge and regen per level
+        "base_cost": 5000, "cost_mult": 3.0, "effect": 0.08
     }
 }
 
@@ -176,7 +176,9 @@ class DynamicMarket:
         # Store historical prices for the chart
         self.history = {k: [v['base']] for k, v in SCRAP_DB.items()}
         self.current_prices = {k: v['base'] for k, v in SCRAP_DB.items()}
-        self.trend_cycles = {k: 0 for k in SCRAP_DB.items()}
+        
+        # BUG FIX: Use .keys() instead of .items() so the dictionary keys are strings, not tuples
+        self.trend_cycles = {k: 0 for k in SCRAP_DB.keys()}
 
     def simulate_cycle(self):
         # Shifts prices based on volatility and random walk
@@ -216,7 +218,7 @@ class SalvageShip:
         # Combat / Vitals
         self.hull = self.get_max_hull()
         self.fuel = self.get_max_fuel()
-        self.hostile_encounter = None # Stores active enemy dict
+        self.hostile_encounter = None
 
     def get_max_hull(self): return 150 + (self.upgrades['hull'] * UPGRADE_TREE['hull']['effect'])
     def get_max_fuel(self): return 300 + (self.upgrades['fuel'] * UPGRADE_TREE['fuel']['effect'])
@@ -259,7 +261,7 @@ class SalvageShip:
         self.hostile_encounter = None
         self.hull = self.get_max_hull()
         self.fuel = self.get_max_fuel()
-        st.session_state.market.simulate_cycle() # Market shifts while you recover
+        st.session_state.market.simulate_cycle()
 
 # ==========================================
 # GAME ENGINE FUNCTIONS
@@ -374,7 +376,6 @@ def harvest_target(ship, blip_idx):
     if ship.get_cargo_weight() + weight > ship.get_max_cargo():
         ship.add_log(f"📦 HOLD FULL: Cannot fit {item} ({weight}t).")
     else:
-        # We store the base item type. Price is calculated at the station via Market
         ship.cargo.append({"name": item, "weight": weight})
         ship.add_log(f"✅ SECURED: {item} | Mass: {weight}t")
 
@@ -588,7 +589,6 @@ def main():
             st.markdown("<hr>", unsafe_allow_html=True)
             st.markdown("### CARGO HOLD")
             render_bar(ship.get_cargo_weight(), ship.get_max_cargo(), "#8b5cf6")
-            # Removed markdown icons in expander to fix mobile bug
             with st.expander(f"Manifest [{len(ship.cargo)} Items]"):
                 if not ship.cargo: st.write("Hold empty.")
                 else:
