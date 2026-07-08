@@ -27,6 +27,7 @@ h1, h2, h3 {
     color: #38bdf8 !important;
     text-transform: uppercase;
     text-shadow: 0 0 10px rgba(56, 189, 248, 0.3);
+    margin-bottom: 0rem;
 }
 .metric-box {
     background: linear-gradient(180deg, #0f172a 0%, #020617 100%);
@@ -114,6 +115,15 @@ hr { border-color: #1e293b; }
     height: 100%;
     transition: width 0.3s ease;
 }
+.popover-help-btn button {
+    margin-top: 15px;
+    border-color: #8b5cf6 !important;
+    color: #8b5cf6 !important;
+}
+.popover-help-btn button:hover {
+    background: #8b5cf6 !important;
+    color: #ffffff !important;
+}
 </style>
 """
 st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
@@ -173,20 +183,15 @@ UPGRADE_TREE = {
 # ==========================================
 class DynamicMarket:
     def __init__(self):
-        # Store historical prices for the chart
         self.history = {k: [v['base']] for k, v in SCRAP_DB.items()}
         self.current_prices = {k: v['base'] for k, v in SCRAP_DB.items()}
-        
-        # BUG FIX: Use .keys() instead of .items() so the dictionary keys are strings, not tuples
         self.trend_cycles = {k: 0 for k in SCRAP_DB.keys()}
 
     def simulate_cycle(self):
-        # Shifts prices based on volatility and random walk
         for item, data in SCRAP_DB.items():
             base = data['base']
             volatility = data['volatility']
             
-            # Create market momentum
             if random.random() > 0.8: 
                 self.trend_cycles[item] = random.choice([-1, 1]) * random.uniform(0.5, 2.0)
             
@@ -194,13 +199,10 @@ class DynamicMarket:
             shift = random.uniform(-volatility, volatility) + (trend * 0.05)
             
             new_price = self.current_prices[item] * (1 + shift)
-            
-            # Price bounds (can't crash to 0, can't go higher than 4x base)
             new_price = max(base * 0.2, min(base * 4.0, new_price))
             self.current_prices[item] = int(new_price)
             
             self.history[item].append(self.current_prices[item])
-            # Keep history manageable
             if len(self.history[item]) > 20:
                 self.history[item].pop(0)
 
@@ -215,7 +217,6 @@ class SalvageShip:
         self.radar_data = [] 
         self.log = ["A.P.E.X. Matrix Online.", "Awaiting Launch sequence."]
         
-        # Combat / Vitals
         self.hull = self.get_max_hull()
         self.fuel = self.get_max_fuel()
         self.hostile_encounter = None
@@ -226,7 +227,6 @@ class SalvageShip:
     def get_firepower(self): return 20 + (self.upgrades['weapons'] * UPGRADE_TREE['weapons']['effect'])
     
     def get_fuel_efficiency(self):
-        # SOHC 4V Engine Logic - diminishing returns on efficiency
         reduction = self.upgrades['sohc4v'] * UPGRADE_TREE['sohc4v']['effect']
         return max(0.15, 1.0 - reduction)
 
@@ -275,7 +275,6 @@ def scan_sector(ship):
         angle = random.uniform(0, 360)
         distance = random.uniform(1.0, 10.0 + (radar_lvl * 2.0))
         
-        # Depth + Radar level increases rare loot chance
         roll = random.random() + (ship.depth_au * 0.01) + (radar_lvl * 0.03)
         
         if roll > 0.96: r, c, n = 5, "#a855f7", "Dark Matter Anomaly"
@@ -290,7 +289,6 @@ def scan_sector(ship):
     ship.add_log(f"📡 L.O.O.T. ARRAY: Sector scanned. {len(blips)} signatures found.")
 
 def trigger_encounter(ship):
-    # 25% chance of hostile encounter when moving deeper
     if random.random() > 0.75:
         enemy_types = [
             {"name": "Rogue Mining Drone", "hp": 40, "dmg": 15},
@@ -298,7 +296,6 @@ def trigger_encounter(ship):
             {"name": "Automated Defense Platform", "hp": 150, "dmg": 50}
         ]
         
-        # Scale enemies by depth
         tier = min(2, int(ship.depth_au / 15))
         base_enemy = enemy_types[tier]
         
@@ -313,7 +310,6 @@ def execute_combat_round(ship):
     enemy = ship.hostile_encounter
     if not enemy: return
     
-    # Ship fires first
     dmg_dealt = int(ship.get_firepower() * random.uniform(0.8, 1.2))
     enemy['hp'] -= dmg_dealt
     ship.add_log(f"⚔️ KINETIC CANNONS: Dealt {dmg_dealt} DMG to {enemy['name']}.")
@@ -321,13 +317,11 @@ def execute_combat_round(ship):
     if enemy['hp'] <= 0:
         ship.add_log(f"✅ THREAT NEUTRALIZED: {enemy['name']} destroyed.")
         ship.hostile_encounter = None
-        # Reward
         bounty = int(enemy['dmg'] * 5 * (1 + (ship.depth_au*0.1)))
         ship.credits += bounty
         ship.add_log(f"💰 BOUNTY CLAIMED: {bounty} CR.")
         return
 
-    # Enemy returns fire
     dmg_taken = int(enemy['dmg'] * random.uniform(0.8, 1.2))
     ship.take_damage(dmg_taken, enemy['name'])
 
@@ -361,12 +355,10 @@ def harvest_target(ship, blip_idx):
     ship.fuel -= f_cost
     blip['harvested'] = True
     
-    # Hazard check
     if random.random() < 0.15 + (ship.depth_au * 0.005):
         ship.take_damage(random.randint(15, 35), "Debris Collision")
         if ship.hull <= 0: return 
             
-    # Generate Loot
     pool = [k for k, v in SCRAP_DB.items() if v['rarity'] <= blip['rarity']]
     if not pool: pool = ["Iron-Carbon"]
     
@@ -395,7 +387,6 @@ def push_orbit(ship):
     
     ship.add_log(f"🚀 PROGRADE BURN: Pushing to {ship.depth_au:.1f} AU.")
     
-    # A.P.E.X passive healing
     heal = int(ship.get_max_hull() * (ship.upgrades['apex'] * 0.05))
     if heal > 0 and ship.hull < ship.get_max_hull():
         ship.hull = min(ship.get_max_hull(), ship.hull + heal)
@@ -422,7 +413,6 @@ def return_to_base(ship, market):
     
     ship.add_log("🌌 RETROGRADE BURN SUCCESS. Docked at Station Alpha.")
     
-    # Calculate payout based on CURRENT market prices
     total_payout = 0
     item_counts = {}
     for item in ship.cargo:
@@ -441,7 +431,6 @@ def return_to_base(ship, market):
     ship.hull = ship.get_max_hull()
     ship.fuel = ship.get_max_fuel()
     
-    # Simulate market changing while you were away
     market.simulate_cycle()
 
 # ==========================================
@@ -460,7 +449,6 @@ def render_market_chart(market):
     fig = go.Figure()
     colors = ["#94a3b8", "#fca5a5", "#cbd5e1", "#818cf8", "#fde047", "#c084fc"]
     for idx, (item, history) in enumerate(market.history.items()):
-        # Only plot the last 15 ticks for cleanliness
         y_data = history[-15:] if len(history) > 15 else history
         x_data = list(range(len(y_data)))
         fig.add_trace(go.Scatter(
@@ -529,7 +517,44 @@ def main():
     ship = st.session_state.ship
     market = st.session_state.market
 
-    st.markdown("<h1>🌌 A.P.E.X. VOID DRIFT</h1>", unsafe_allow_html=True)
+    # HEADER WITH INFO BUTTON
+    header_col1, header_col2 = st.columns([0.85, 0.15])
+    with header_col1:
+        st.markdown("<h1>🌌 A.P.E.X. VOID DRIFT</h1>", unsafe_allow_html=True)
+    with header_col2:
+        st.markdown("<div class='popover-help-btn'>", unsafe_allow_html=True)
+        with st.popover("ℹ️ HELP", use_container_width=True):
+            st.markdown("""
+            ### 📖 A.P.E.X. FLIGHT MANUAL
+            Welcome to the command terminal. Your objective is to launch from Station Alpha, scavenge deep space for valuable scrap, and return alive to sell your payload.
+            
+            **1. Navigation & The Void**
+            * **Launch / Burn Prograde:** Pushes your vessel deeper into the sector. The deeper you travel, the rarer the scrap, but the deadlier the enemies. This consumes Delta-v (fuel).
+            * **Burn Retrograde:** Returns you to Station Alpha. 
+            * *CRITICAL WARNING:* Returning costs Delta-v proportional to your depth. If you run out of fuel in the void, your vessel will be lost. Always monitor your return fuel cost.
+            
+            **2. L.O.O.T. Array (Radar)**
+            * Ping local anomalies on the radar tab.
+            * Select an anomaly to expend fuel and harvest it. 
+            * Heavier scrap fills your Cargo Hold quickly. Ensure you have the capacity.
+            
+            **3. Combat Protocols**
+            * **Hostile Encounters:** Deeper space triggers interceptions by rogue drones and pirates.
+            * **Evasive Maneuvers:** Relies on your Advanced Predictive Executive Matrix to calculate dodge vectors. Costs fuel, but saves your hull.
+            * **Kinetic Cannons:** Stand your ground and fire back. Destroying enemies yields Credit bounties.
+            
+            **4. Station Alpha Shipyard**
+            * You must be docked at Alpha to upgrade.
+            * Invest Credits (CR) into your Hull, Cargo Bay, Weapons, and Radar. 
+            * *Pro-tip:* Upgrading your SOHC-4V Plasma Valvetrain is vital for stretching fuel efficiency on deep runs. Upgrading the core Advanced Predictive Executive Matrix grants passive auto-repairs between jumps.
+            
+            **5. Commodity Exchange**
+            * Scrap prices fluctuate every time you dock or an event passes.
+            * Sell high, or risk venturing back out if the market crashes.
+            """)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
 
     # Top Vitals (Mobile Friendly Grid)
     col1, col2 = st.columns(2)
@@ -612,7 +637,7 @@ def main():
                 if active:
                     st.markdown("**DETECTED ANOMALIES (Select to Harvest):**")
                     cols = st.columns(3)
-                    for i, b_idx in enumerate(active[:9]): # Show max 9 targets
+                    for i, b_idx in enumerate(active[:9]):
                         b = ship.radar_data[b_idx]
                         f_cost = int(b['dist'] * 3 * ship.get_fuel_efficiency())
                         with cols[i % 3]:
@@ -656,11 +681,9 @@ def main():
         st.markdown("### COMMODITY EXCHANGE")
         st.markdown("<p style='font-size:13px; color:#94a3b8;'>Scrap values fluctuate based on station demand. Values shown are per unit.</p>", unsafe_allow_html=True)
         
-        # Draw the Plotly chart
         m_fig = render_market_chart(market)
         st.plotly_chart(m_fig, use_container_width=True, config={'displayModeBar': False})
         
-        # Display current prices cleanly
         st.markdown("**Current Market Rates:**")
         m_cols = st.columns(3)
         for idx, (item, price) in enumerate(market.current_prices.items()):
@@ -675,3 +698,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
