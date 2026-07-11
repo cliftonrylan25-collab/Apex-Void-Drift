@@ -10,7 +10,7 @@ import math
 # PAGE CONFIGURATION
 # ==========================================
 st.set_page_config(
-    page_title="APEX // CLOUD",
+    page_title="A.P.E.X. VOID DRIFT",
     page_icon="🌌",
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -92,7 +92,7 @@ h3 {
     margin-bottom: 5px;
 }
 .metric-value {
-    font-size: 1.8rem;
+    font-size: 1.5rem;
     color: #f8fafc;
     font-weight: 700;
     font-family: 'Share Tech Mono', monospace;
@@ -291,7 +291,7 @@ UPGRADE_TREE = {
         "base_cost": 1200, "cost_mult": 2.0, "effect": 15
     },
     "apex": {
-        "name": "APEX // CLOUD Core",
+        "name": "A.P.E.X. Core",
         "desc": "Advanced Predictive Executive matrix. Grants tactical evasion and auto-repairs.",
         "base_cost": 5000, "cost_mult": 3.0, "effect": 0.08
     }
@@ -334,7 +334,7 @@ class SalvageShip:
         self.upgrades = {k: 0 for k in UPGRADE_TREE.keys()}
         self.cargo = [] 
         self.radar_data = [] 
-        self.log = ["APEX // CLOUD System Online.", "Awaiting Launch sequence."]
+        self.log = ["A.P.E.X. System Online.", "Awaiting Launch sequence."]
         
         self.hull = self.get_max_hull()
         self.fuel = self.get_max_fuel()
@@ -362,7 +362,7 @@ class SalvageShip:
 
     def take_damage(self, amount, source):
         if random.random() < self.get_apex_dodge():
-            self.add_log(f"⚡ APEX // CLOUD: Micro-thrusters evaded {source}!")
+            self.add_log(f"⚡ A.P.E.X. MATRIX: Micro-thrusters evaded {source}!")
             return False
             
         self.hull -= amount
@@ -506,7 +506,7 @@ def push_orbit(ship):
     heal = int(ship.get_max_hull() * (ship.upgrades['apex'] * 0.05))
     if heal > 0 and ship.hull < ship.get_max_hull():
         ship.hull = min(ship.get_max_hull(), ship.hull + heal)
-        ship.add_log(f"🔧 APEX // CLOUD Auto-Repair restored {heal} Hull.")
+        ship.add_log(f"🔧 A.P.E.X. Auto-Repair restored {heal} Hull.")
 
     scan_sector(ship)
     trigger_encounter(ship)
@@ -593,7 +593,7 @@ def render_radar(ship):
     fig.add_trace(go.Scatterpolar(
         r=[0], theta=[0], mode='markers',
         marker=dict(color='#38bdf8', size=15, symbol='x', line=dict(color='#fff', width=2)),
-        hoverinfo='text', text='APEX // CLOUD VESSEL', name='Vessel'
+        hoverinfo='text', text='A.P.E.X. VESSEL', name='Vessel'
     ))
 
     if ship.depth_au > 0 and ship.radar_data:
@@ -637,7 +637,7 @@ def main():
     # HEADER & HELP POPOVER
     header_col1, header_col2 = st.columns([0.9, 0.1])
     with header_col1:
-        st.markdown("<h1>APEX // CLOUD</h1>", unsafe_allow_html=True)
+        st.markdown("<h1>A.P.E.X. VOID DRIFT</h1>", unsafe_allow_html=True)
     with header_col2:
         st.markdown("<div class='popover-help-btn'>", unsafe_allow_html=True)
         with st.popover("?", use_container_width=True):
@@ -645,8 +645,8 @@ def main():
             ### 📖 FLIGHT MANUAL
             **1. Navigation:** Burn Prograde to travel deeper (better loot, harder enemies). Burn Retrograde to return to Alpha Station. Running out of fuel means death.
             **2. Radar:** Scan and harvest anomalies. Watch your cargo weight limit.
-            **3. Combat:** Deep space triggers hostiles. Evade (costs fuel, uses APEX // CLOUD evasion stat) or fight with Kinetic Cannons.
-            **4. Shipyard:** Dock at Alpha Station to upgrade your Hull, Fuel, Cargo, Radar, Weapons, and APEX // CLOUD Core.
+            **3. Combat:** Deep space triggers hostiles. Evade (costs fuel, uses A.P.E.X. evasion stat) or fight with Kinetic Cannons.
+            **4. Shipyard:** Dock at Alpha Station to upgrade your Hull, Fuel, Cargo, Radar, Weapons, and A.P.E.X. Core.
             **5. Market:** Sell scrap at Alpha. Prices fluctuate constantly.
             """)
         st.markdown("</div>", unsafe_allow_html=True)
@@ -654,7 +654,8 @@ def main():
     # VITALS RIBBON
     v1, v2, v3, v4 = st.columns(4)
     with v1:
-        st.markdown(f'<div class="cyber-card purple"><div class="metric-title">Depth / Record</div><div class="metric-value">{ship.depth_au:.1f} AU</div></div>', unsafe_allow_html=True)
+        # 🐛 THE FIX: Added the / {ship.max_depth:.1f} back into the HTML string interpolation 
+        st.markdown(f'<div class="cyber-card purple"><div class="metric-title">Depth / Record</div><div class="metric-value">{ship.depth_au:.1f} / {ship.max_depth:.1f} AU</div></div>', unsafe_allow_html=True)
     with v2:
         st.markdown(f'<div class="cyber-card warning"><div class="metric-title">Account Balance</div><div class="metric-value">{ship.credits:,.0f} CR</div></div>', unsafe_allow_html=True)
     with v3:
