@@ -3,152 +3,249 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 import random
-import math
 import datetime
+import math
 
 # ==========================================
-# PAGE CONFIGURATION & THEME
+# PAGE CONFIGURATION
 # ==========================================
-st.set_page_config(page_title="A.P.E.X. SALVAGE COMMAND", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(
+    page_title="APEX // CLOUD",
+    page_icon="🌌",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
 
-# Custom CSS focused on mobile responsiveness, terminal aesthetics, and text-wrapping
-CUSTOM_CSS = """
+# ==========================================
+# ADVANCED CSS INJECTION (THE "PRO" UI)
+# ==========================================
+ADVANCED_CSS = """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&display=swap');
-html, body, [class*="css"], [class*="st-"] {
-    font-family: 'Rajdhani', sans-serif !important;
-    letter-spacing: 0.5px;
-}
+/* Import High-Tech Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@300;500;600;700&family=Share+Tech+Mono&display=swap');
+
+/* Base Theme & Animated Background */
 .stApp {
-    background-color: #050914;
+    background-color: #030509;
+    background-image: 
+        radial-gradient(circle at 15% 50%, rgba(12, 20, 36, 0.8), transparent 25%),
+        radial-gradient(circle at 85% 30%, rgba(19, 15, 40, 0.8), transparent 25%);
+    background-attachment: fixed;
     color: #e2e8f0;
+    font-family: 'Rajdhani', sans-serif !important;
 }
-h1, h2, h3 {
-    color: #38bdf8 !important;
+
+/* Hide standard Streamlit elements */
+#MainMenu, footer, header {visibility: hidden;}
+
+/* Global Typography */
+h1, h2, h3, .stTabs [data-baseweb="tab"] p {
+    font-family: 'Orbitron', sans-serif !important;
     text-transform: uppercase;
-    text-shadow: 0 0 10px rgba(56, 189, 248, 0.3);
-    margin-bottom: 0rem;
-    word-wrap: break-word;
+    letter-spacing: 1.5px;
 }
-.metric-box {
-    background: linear-gradient(180deg, #0f172a 0%, #020617 100%);
-    border: 1px solid #1e293b;
+
+h1 {
+    color: #f8fafc !important;
+    text-shadow: 0 0 15px rgba(56, 189, 248, 0.6), 0 0 30px rgba(56, 189, 248, 0.2);
+    font-weight: 900 !important;
+}
+
+h3 {
+    color: #38bdf8 !important;
+    font-size: 1.2rem !important;
+    margin-bottom: 1rem !important;
+    border-bottom: 1px solid rgba(56, 189, 248, 0.2);
+    padding-bottom: 0.5rem;
+}
+
+/* Glassmorphism Cards */
+.cyber-card {
+    background: rgba(10, 15, 25, 0.6);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(56, 189, 248, 0.15);
     border-top: 3px solid #38bdf8;
-    padding: 15px;
-    border-radius: 4px;
-    margin-bottom: 10px;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+    border-radius: 6px;
+    padding: 20px;
+    margin-bottom: 15px;
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    transition: all 0.3s ease;
     overflow-wrap: break-word;
 }
-.metric-box.danger { border-top-color: #ef4444; }
-.metric-box.warning { border-top-color: #f59e0b; }
-.metric-box.success { border-top-color: #10b981; }
+.cyber-card:hover {
+    border-color: rgba(56, 189, 248, 0.4);
+    box-shadow: 0 8px 32px 0 rgba(56, 189, 248, 0.15);
+}
+.cyber-card.danger { border-top-color: #ef4444; }
+.cyber-card.warning { border-top-color: #f59e0b; }
+.cyber-card.success { border-top-color: #10b981; }
+.cyber-card.purple { border-top-color: #8b5cf6; }
+
+/* Metrics */
 .metric-title {
-    font-size: 12px;
+    font-size: 0.75rem;
     color: #94a3b8;
     text-transform: uppercase;
-    font-weight: 600;
-    line-height: 1.2;
-    margin-bottom: 4px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    margin-bottom: 5px;
 }
 .metric-value {
-    font-size: 22px;
+    font-size: 1.8rem;
     color: #f8fafc;
     font-weight: 700;
-    font-family: monospace;
-    line-height: 1.2;
+    font-family: 'Share Tech Mono', monospace;
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
 }
-.console-log {
-    background-color: #020617;
+
+/* CRT Terminal Console */
+.console-wrapper {
+    position: relative;
+    background: #020408;
     border: 1px solid #1e293b;
     border-left: 4px solid #8b5cf6;
+    border-radius: 4px;
     padding: 15px;
     height: 400px;
     overflow-y: auto;
-    font-family: monospace !important;
-    font-size: 13px;
+    box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+}
+.console-wrapper::after {
+    content: " ";
+    display: block;
+    position: absolute;
+    top: 0; left: 0; bottom: 0; right: 0;
+    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+    z-index: 2;
+    background-size: 100% 2px, 3px 100%;
+    pointer-events: none;
+}
+.console-log {
+    font-family: 'Share Tech Mono', monospace !important;
+    font-size: 0.85rem;
     color: #a78bfa;
-    overflow-wrap: break-word;
+    text-shadow: 0 0 5px rgba(167, 139, 250, 0.4);
+    line-height: 1.5;
 }
 .console-log span {
     display: block;
-    margin-bottom: 6px;
-    line-height: 1.4;
-    border-bottom: 1px solid rgba(30, 41, 59, 0.5);
+    margin-bottom: 4px;
+    border-bottom: 1px dashed rgba(30, 41, 59, 0.5);
     padding-bottom: 4px;
 }
+.console-log span:first-child {
+    color: #e2e8f0;
+    text-shadow: 0 0 8px rgba(255,255,255,0.6);
+}
+
+/* Custom Cyber Buttons */
 .stButton>button {
-    background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
-    color: #38bdf8;
-    border: 1px solid #334155;
-    border-radius: 2px;
-    font-weight: 600;
+    background: rgba(15, 23, 42, 0.7) !important;
+    color: #38bdf8 !important;
+    border: 1px solid #38bdf8 !important;
+    border-radius: 2px !important;
+    font-family: 'Orbitron', sans-serif !important;
+    font-weight: 600 !important;
+    letter-spacing: 1px;
     text-transform: uppercase;
-    transition: all 0.2s;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
     width: 100%;
-    /* TEXT OVERLAP FIXES */
-    white-space: pre-wrap !important; 
-    word-wrap: break-word !important;
+    padding: 0.75rem !important;
+    box-shadow: inset 0 0 0 rgba(56, 189, 248, 0);
+    white-space: pre-wrap !important;
     height: auto !important;
-    min-height: 2.5rem;
-    padding: 0.5rem;
-    line-height: 1.3;
+    min-height: 3rem;
 }
 .stButton>button:hover {
-    border-color: #38bdf8;
-    color: #ffffff;
-    box-shadow: 0 0 15px rgba(56, 189, 248, 0.4);
+    background: rgba(56, 189, 248, 0.1) !important;
+    color: #ffffff !important;
+    box-shadow: inset 0 0 15px rgba(56, 189, 248, 0.3), 0 0 15px rgba(56, 189, 248, 0.4) !important;
+    transform: translateY(-1px);
 }
-.action-btn>button {
-    background: linear-gradient(180deg, #047857 0%, #064e3b 100%) !important;
-    color: #ecfdf5 !important;
-    border-color: #10b981 !important;
-}
-.danger-btn>button {
-    background: linear-gradient(180deg, #991b1b 0%, #7f1d1d 100%) !important;
-    color: #fef2f2 !important;
-    border-color: #ef4444 !important;
-}
-.upgrade-card {
-    background: #0f172a;
-    border: 1px solid #1e293b;
-    padding: 15px;
-    border-radius: 4px;
-    margin-bottom: 15px;
-    overflow-wrap: break-word;
-}
-.upgrade-title {
-    color: #8b5cf6;
-    font-weight: 700;
-    font-size: 16px;
-    margin-bottom: 5px;
-    line-height: 1.2;
-}
-hr { border-color: #1e293b; }
+
+/* Contextual Button Colors via HTML Wrappers */
+.btn-combat>button { border-color: #ef4444 !important; color: #ef4444 !important; }
+.btn-combat>button:hover { background: rgba(239, 68, 68, 0.1) !important; box-shadow: inset 0 0 15px rgba(239, 68, 68, 0.3), 0 0 15px rgba(239, 68, 68, 0.4) !important; color:#fff !important;}
+
+.btn-evade>button { border-color: #f59e0b !important; color: #f59e0b !important; }
+.btn-evade>button:hover { background: rgba(245, 158, 11, 0.1) !important; box-shadow: inset 0 0 15px rgba(245, 158, 11, 0.3), 0 0 15px rgba(245, 158, 11, 0.4) !important; color:#fff !important;}
+
+.btn-launch>button { border-color: #10b981 !important; color: #10b981 !important; }
+.btn-launch>button:hover { background: rgba(16, 185, 129, 0.1) !important; box-shadow: inset 0 0 15px rgba(16, 185, 129, 0.3), 0 0 15px rgba(16, 185, 129, 0.4) !important; color:#fff !important;}
+
+/* Animated Progress Bars */
 .progress-container {
     width: 100%;
-    background-color: #1e293b;
-    border-radius: 2px;
+    background-color: rgba(30, 41, 59, 0.5);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 3px;
     margin-top: 5px;
-    height: 10px;
+    height: 12px;
     overflow: hidden;
+    position: relative;
 }
 .progress-fill {
     height: 100%;
-    transition: width 0.3s ease;
+    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
 }
+.progress-fill::after {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; bottom: 0; right: 0;
+    background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.3) 50%, rgba(255,255,255,0) 100%);
+    animation: shimmer 2s infinite;
+}
+@keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+/* Tabs Styling */
+.stTabs [data-baseweb="tab-list"] {
+    background-color: transparent;
+    gap: 10px;
+}
+.stTabs [data-baseweb="tab"] {
+    background-color: rgba(15, 23, 42, 0.4);
+    border: 1px solid rgba(56, 189, 248, 0.2);
+    border-bottom: none;
+    border-radius: 4px 4px 0 0;
+    color: #94a3b8;
+    transition: all 0.2s;
+}
+.stTabs [aria-selected="true"] {
+    background-color: rgba(56, 189, 248, 0.1);
+    color: #38bdf8 !important;
+    border-color: #38bdf8;
+    box-shadow: 0 -4px 15px rgba(56, 189, 248, 0.15);
+}
+
+/* Popover / Info Button */
 .popover-help-btn button {
-    margin-top: 15px;
-    border-color: #8b5cf6 !important;
-    color: #8b5cf6 !important;
+    border-color: #c084fc !important;
+    color: #c084fc !important;
+    border-radius: 50% !important;
+    width: 40px !important;
+    height: 40px !important;
+    min-height: unset !important;
+    padding: 0 !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: auto;
 }
 .popover-help-btn button:hover {
-    background: #8b5cf6 !important;
-    color: #ffffff !important;
+    background: rgba(192, 132, 252, 0.2) !important;
+    box-shadow: 0 0 15px rgba(192, 132, 252, 0.5) !important;
 }
+
+hr { border-color: rgba(56, 189, 248, 0.2); margin: 2rem 0; }
 </style>
 """
-st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
+st.markdown(ADVANCED_CSS, unsafe_allow_html=True)
 
 # ==========================================
 # GAME CONSTANTS & DATABASES
@@ -165,7 +262,7 @@ SCRAP_DB = {
 UPGRADE_TREE = {
     "hull": {
         "name": "Ablative Armor",
-        "desc": "Increases max Hull Integrity.",
+        "desc": "Reinforces max Hull Integrity.",
         "base_cost": 500, "cost_mult": 1.8, "effect": 75
     },
     "fuel": {
@@ -180,12 +277,12 @@ UPGRADE_TREE = {
     },
     "sohc4v": {
         "name": "SOHC-4V Plasma Head",
-        "desc": "Single Overhead Cam with 4-valve cylinder vectors. Highly efficient. Reduces fuel consumption by 12% per level.",
+        "desc": "Highly efficient plasma valvetrain. Reduces fuel consumption by 12% per level.",
         "base_cost": 1500, "cost_mult": 2.2, "effect": 0.12
     },
     "radar": {
         "name": "L.O.O.T. Array",
-        "desc": "Logistical Observation array. Extends radar range and rare anomaly detection.",
+        "desc": "Extends radar range and enhances rare anomaly detection.",
         "base_cost": 2000, "cost_mult": 2.5, "effect": 1
     },
     "weapons": {
@@ -194,8 +291,8 @@ UPGRADE_TREE = {
         "base_cost": 1200, "cost_mult": 2.0, "effect": 15
     },
     "apex": {
-        "name": "A.P.E.X. Core",
-        "desc": "Advanced Predictive Executive Matrix. Provides tactical evasion and automated system repairs.",
+        "name": "APEX // CLOUD Core",
+        "desc": "Advanced Predictive Executive matrix. Grants tactical evasion and auto-repairs.",
         "base_cost": 5000, "cost_mult": 3.0, "effect": 0.08
     }
 }
@@ -237,7 +334,7 @@ class SalvageShip:
         self.upgrades = {k: 0 for k in UPGRADE_TREE.keys()}
         self.cargo = [] 
         self.radar_data = [] 
-        self.log = ["A.P.E.X. Matrix Online.", "Awaiting Launch sequence."]
+        self.log = ["APEX // CLOUD System Online.", "Awaiting Launch sequence."]
         
         self.hull = self.get_max_hull()
         self.fuel = self.get_max_fuel()
@@ -265,7 +362,7 @@ class SalvageShip:
 
     def take_damage(self, amount, source):
         if random.random() < self.get_apex_dodge():
-            self.add_log(f"⚡ A.P.E.X. MATRIX: Micro-thrusters evaded {source}!")
+            self.add_log(f"⚡ APEX // CLOUD: Micro-thrusters evaded {source}!")
             return False
             
         self.hull -= amount
@@ -296,13 +393,12 @@ def scan_sector(ship):
     for _ in range(num_blips):
         angle = random.uniform(0, 360)
         distance = random.uniform(1.0, 10.0 + (radar_lvl * 2.0))
-        
         roll = random.random() + (ship.depth_au * 0.01) + (radar_lvl * 0.03)
         
-        if roll > 0.96: r, c, n = 5, "#a855f7", "Dark Matter Anomaly"
-        elif roll > 0.82: r, c, n = 4, "#f59e0b", "High-Energy Signature"
-        elif roll > 0.55: r, c, n = 3, "#3b82f6", "Encrypted Wreckage"
-        elif roll > 0.25: r, c, n = 2, "#10b981", "Reinforced Struts"
+        if roll > 0.96: r, c, n = 5, "#c084fc", "Dark Matter Anomaly"
+        elif roll > 0.82: r, c, n = 4, "#fcd34d", "High-Energy Signature"
+        elif roll > 0.55: r, c, n = 3, "#60a5fa", "Encrypted Wreckage"
+        elif roll > 0.25: r, c, n = 2, "#34d399", "Reinforced Struts"
         else: r, c, n = 1, "#94a3b8", "Generic Scrap"
             
         blips.append({"angle": angle, "dist": distance, "rarity": r, "color": c, "name": n, "harvested": False})
@@ -317,10 +413,8 @@ def trigger_encounter(ship):
             {"name": "Pirate Interceptor", "hp": 80, "dmg": 30},
             {"name": "Automated Defense Platform", "hp": 150, "dmg": 50}
         ]
-        
         tier = min(2, int(ship.depth_au / 15))
         base_enemy = enemy_types[tier]
-        
         ship.hostile_encounter = {
             "name": base_enemy["name"],
             "hp": base_enemy["hp"] + int(ship.depth_au * 2),
@@ -412,7 +506,7 @@ def push_orbit(ship):
     heal = int(ship.get_max_hull() * (ship.upgrades['apex'] * 0.05))
     if heal > 0 and ship.hull < ship.get_max_hull():
         ship.hull = min(ship.get_max_hull(), ship.hull + heal)
-        ship.add_log(f"🔧 A.P.E.X. Auto-Repair restored {heal} Hull.")
+        ship.add_log(f"🔧 APEX // CLOUD Auto-Repair restored {heal} Hull.")
 
     scan_sector(ship)
     trigger_encounter(ship)
@@ -452,78 +546,79 @@ def return_to_base(ship, market):
     ship.cargo = []
     ship.hull = ship.get_max_hull()
     ship.fuel = ship.get_max_fuel()
-    
     market.simulate_cycle()
 
 # ==========================================
 # UI RENDERING HELPERS
 # ==========================================
-def render_bar(current, maximum, color):
+def render_cyber_bar(current, maximum, color_hex, unit=""):
     pct = min(100, max(0, int((current / maximum) * 100)))
     st.markdown(f"""
     <div class="progress-container">
-        <div class="progress-fill" style="width: {pct}%; background-color: {color};"></div>
+        <div class="progress-fill" style="width: {pct}%; background-color: {color_hex}; box-shadow: 0 0 10px {color_hex};"></div>
     </div>
-    <div style="font-size:11px; color:#94a3b8; text-align:right;">{current:.1f} / {maximum:.1f}</div>
+    <div style="display:flex; justify-content:space-between; font-size:12px; color:#cbd5e1; margin-top:4px; font-family:'Share Tech Mono', monospace;">
+        <span>{pct}%</span>
+        <span>{current:.1f} / {maximum:.1f} {unit}</span>
+    </div>
     """, unsafe_allow_html=True)
 
 def render_market_chart(market):
     fig = go.Figure()
-    colors = ["#94a3b8", "#fca5a5", "#cbd5e1", "#818cf8", "#fde047", "#c084fc"]
+    colors = ["#94a3b8", "#ef4444", "#38bdf8", "#8b5cf6", "#f59e0b", "#c084fc"]
     for idx, (item, history) in enumerate(market.history.items()):
         y_data = history[-15:] if len(history) > 15 else history
         x_data = list(range(len(y_data)))
         fig.add_trace(go.Scatter(
             x=x_data, y=y_data, mode='lines+markers', name=item,
-            line=dict(color=colors[idx % len(colors)], width=2),
-            marker=dict(size=6)
+            line=dict(color=colors[idx % len(colors)], width=2, shape='spline'),
+            marker=dict(size=6, symbol='diamond', line=dict(width=1, color='#fff'))
         ))
     
     fig.update_layout(
-        title="Live Commodity Pricing (Station Alpha)",
-        title_font=dict(color="#38bdf8", family="Rajdhani"),
         paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
-        font=dict(color="#cbd5e1"),
+        font=dict(color="#cbd5e1", family="Rajdhani"),
         xaxis=dict(showgrid=False, visible=False),
-        yaxis=dict(gridcolor="#1e293b"),
+        yaxis=dict(gridcolor="rgba(30, 41, 59, 0.5)", zerolinecolor="rgba(30, 41, 59, 0.5)"),
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-        margin=dict(l=10, r=10, t=50, b=10),
+        margin=dict(l=0, r=0, t=30, b=0),
         height=300
     )
     return fig
 
 def render_radar(ship):
-    if ship.depth_au == 0 or not ship.radar_data:
-        fig = go.Figure()
-        fig.add_trace(go.Scatterpolar(r=[0], theta=[0], mode='markers', marker=dict(color='#38bdf8', size=10, symbol='cross'), name='Vessel'))
-    else:
+    fig = go.Figure()
+    
+    # Base Vessel Ping
+    fig.add_trace(go.Scatterpolar(
+        r=[0], theta=[0], mode='markers',
+        marker=dict(color='#38bdf8', size=15, symbol='x', line=dict(color='#fff', width=2)),
+        hoverinfo='text', text='APEX // CLOUD VESSEL', name='Vessel'
+    ))
+
+    if ship.depth_au > 0 and ship.radar_data:
         active = [b for b in ship.radar_data if not b['harvested']]
-        if not active:
-             fig = go.Figure()
-             fig.add_trace(go.Scatterpolar(r=[0], theta=[0], mode='markers', marker=dict(color='#38bdf8', size=10, symbol='cross'), name='Vessel'))
-        else:
+        if active:
             r = [b['dist'] for b in active]
             theta = [b['angle'] for b in active]
             colors = [b['color'] for b in active]
-            sizes = [b['rarity'] * 3 + 8 for b in active]
+            sizes = [b['rarity'] * 4 + 8 for b in active]
             names = [b['name'] for b in active]
             
-            fig = go.Figure()
-            fig.add_trace(go.Scatterpolar(r=[0], theta=[0], mode='markers', marker=dict(color='#38bdf8', size=12, symbol='cross'), hoverinfo='text', text='A.P.E.X. VESSEL'))
             fig.add_trace(go.Scatterpolar(
                 r=r, theta=theta, mode='markers',
-                marker=dict(color=colors, size=sizes, opacity=0.8, line=dict(color='#e2e8f0', width=1)),
-                hoverinfo='text', text=names
+                marker=dict(color=colors, size=sizes, opacity=0.85, line=dict(color='#e2e8f0', width=1)),
+                hoverinfo='text', text=names, name='Anomalies'
             ))
 
     fig.update_layout(
         polar=dict(
-            radialaxis=dict(visible=True, range=[0, 15], gridcolor='#1e293b', tickfont=dict(color='#475569')),
-            angularaxis=dict(gridcolor='#1e293b', tickfont=dict(color='#475569')),
-            bgcolor='#020617'
+            radialaxis=dict(visible=True, range=[0, 15], gridcolor='rgba(56, 189, 248, 0.2)', tickfont=dict(color='#475569')),
+            angularaxis=dict(gridcolor='rgba(56, 189, 248, 0.2)', tickfont=dict(color='#475569')),
+            bgcolor='rgba(2, 6, 23, 0.6)'
         ),
         showlegend=False, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
-        margin=dict(l=20, r=20, t=20, b=20), height=350
+        margin=dict(l=20, r=20, t=20, b=20), height=400
     )
     return fig
 
@@ -539,184 +634,229 @@ def main():
     ship = st.session_state.ship
     market = st.session_state.market
 
-    # HEADER WITH INFO BUTTON
-    header_col1, header_col2 = st.columns([0.85, 0.15])
+    # HEADER & HELP POPOVER
+    header_col1, header_col2 = st.columns([0.9, 0.1])
     with header_col1:
-        st.markdown("<h1>🌌 A.P.E.X. VOID DRIFT</h1>", unsafe_allow_html=True)
+        st.markdown("<h1>APEX // CLOUD</h1>", unsafe_allow_html=True)
     with header_col2:
         st.markdown("<div class='popover-help-btn'>", unsafe_allow_html=True)
-        with st.popover("ℹ️ HELP", use_container_width=True):
+        with st.popover("?", use_container_width=True):
             st.markdown("""
-            ### 📖 A.P.E.X. FLIGHT MANUAL
-            Welcome to the command terminal. Your objective is to launch from Station Alpha, scavenge deep space for valuable scrap, and return alive to sell your payload.
-            
-            **1. Navigation & The Void**
-            * **Launch / Burn Prograde:** Pushes your vessel deeper into the sector. The deeper you travel, the rarer the scrap, but the deadlier the enemies. This consumes Delta-v (fuel).
-            * **Burn Retrograde:** Returns you to Station Alpha. 
-            * *CRITICAL WARNING:* Returning costs Delta-v proportional to your depth. If you run out of fuel in the void, your vessel will be lost. Always monitor your return fuel cost.
-            
-            **2. L.O.O.T. Array (Radar)**
-            * Ping local anomalies on the radar tab.
-            * Select an anomaly to expend fuel and harvest it. 
-            * Heavier scrap fills your Cargo Hold quickly. Ensure you have the capacity.
-            
-            **3. Combat Protocols**
-            * **Hostile Encounters:** Deeper space triggers interceptions by rogue drones and pirates.
-            * **Evasive Maneuvers:** Relies on your Advanced Predictive Executive Matrix to calculate dodge vectors. Costs fuel, but saves your hull.
-            * **Kinetic Cannons:** Stand your ground and fire back. Destroying enemies yields Credit bounties.
-            
-            **4. Station Alpha Shipyard**
-            * You must be docked at Alpha to upgrade.
-            * Invest Credits (CR) into your Hull, Cargo Bay, Weapons, and Radar. 
-            * *Pro-tip:* Upgrading your SOHC-4V Plasma Valvetrain is vital for stretching fuel efficiency on deep runs. Upgrading the core Advanced Predictive Executive Matrix grants passive auto-repairs between jumps.
-            
-            **5. Commodity Exchange**
-            * Scrap prices fluctuate every time you dock or an event passes.
-            * Sell high, or risk venturing back out if the market crashes.
+            ### 📖 FLIGHT MANUAL
+            **1. Navigation:** Burn Prograde to travel deeper (better loot, harder enemies). Burn Retrograde to return to Alpha Station. Running out of fuel means death.
+            **2. Radar:** Scan and harvest anomalies. Watch your cargo weight limit.
+            **3. Combat:** Deep space triggers hostiles. Evade (costs fuel, uses APEX // CLOUD evasion stat) or fight with Kinetic Cannons.
+            **4. Shipyard:** Dock at Alpha Station to upgrade your Hull, Fuel, Cargo, Radar, Weapons, and APEX // CLOUD Core.
+            **5. Market:** Sell scrap at Alpha. Prices fluctuate constantly.
             """)
         st.markdown("</div>", unsafe_allow_html=True)
 
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    # Top Vitals (Mobile Friendly Grid)
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown(f'<div class="metric-box"><div class="metric-title">Depth / Record</div><div class="metric-value" style="color:#a78bfa;">{ship.depth_au:.1f} / {ship.max_depth:.1f} AU</div></div>', unsafe_allow_html=True)
+    # VITALS RIBBON
+    v1, v2, v3, v4 = st.columns(4)
+    with v1:
+        st.markdown(f'<div class="cyber-card purple"><div class="metric-title">Depth / Record</div><div class="metric-value">{ship.depth_au:.1f} AU</div></div>', unsafe_allow_html=True)
+    with v2:
+        st.markdown(f'<div class="cyber-card warning"><div class="metric-title">Account Balance</div><div class="metric-value">{ship.credits:,.0f} CR</div></div>', unsafe_allow_html=True)
+    with v3:
         h_color = "#10b981" if ship.hull > ship.get_max_hull()*0.4 else "#ef4444"
-        st.markdown('<div class="metric-box"><div class="metric-title">Hull Integrity</div></div>', unsafe_allow_html=True)
-        render_bar(ship.hull, ship.get_max_hull(), h_color)
-    with col2:
-        st.markdown(f'<div class="metric-box"><div class="metric-title">Credits</div><div class="metric-value" style="color:#fbbf24;">{ship.credits:,.0f} CR</div></div>', unsafe_allow_html=True)
+        card_class = "success" if ship.hull > ship.get_max_hull()*0.4 else "danger"
+        st.markdown(f'<div class="cyber-card {card_class}" style="padding-bottom:10px;"><div class="metric-title">Hull Integrity</div>', unsafe_allow_html=True)
+        render_cyber_bar(ship.hull, ship.get_max_hull(), h_color)
+        st.markdown('</div>', unsafe_allow_html=True)
+    with v4:
         f_color = "#38bdf8" if ship.fuel > ship.get_max_fuel()*0.3 else "#f59e0b"
-        st.markdown('<div class="metric-box"><div class="metric-title">Delta-v Propellant</div></div>', unsafe_allow_html=True)
-        render_bar(ship.fuel, ship.get_max_fuel(), f_color)
+        card_class = "" if ship.fuel > ship.get_max_fuel()*0.3 else "warning"
+        st.markdown(f'<div class="cyber-card {card_class}" style="padding-bottom:10px;"><div class="metric-title">Delta-V Fuel</div>', unsafe_allow_html=True)
+        render_cyber_bar(ship.fuel, ship.get_max_fuel(), f_color)
+        st.markdown('</div>', unsafe_allow_html=True)
 
-    st.markdown("<hr>", unsafe_allow_html=True)
+    # MAIN INTERFACE TABS
+    tab_nav, tab_radar, tab_eng, tab_market = st.tabs(["🎛️ COMMAND MODULE", "📡 SENSOR ARRAY", "🛠️ SHIPYARD", "📈 EXCHANGE"])
 
-    # Main Tabs for better mobile layout
-    tab_nav, tab_radar, tab_eng, tab_market = st.tabs(["🎛️ FLIGHT CONSOLE", "📡 L.O.O.T. ARRAY", "🛠️ ENGINEERING", "📈 MARKET"])
-
-    # --- TAB 1: FLIGHT CONSOLE & COMBAT ---
+    # --- COMMAND MODULE ---
     with tab_nav:
         c_act, c_log = st.columns([1, 1.5])
         with c_act:
-            st.markdown("### OPERATIONS")
+            st.markdown("### TACTICAL OPERATIONS")
             if ship.hostile_encounter:
-                st.error(f"🚨 UNDER ATTACK: {ship.hostile_encounter['name']} (HP: {ship.hostile_encounter['hp']})")
-                if st.button("⚔️ FIRE KINETIC CANNONS", key="btn_atk"):
+                st.markdown(f"""
+                <div class="cyber-card danger">
+                    <div style="color:#ef4444; font-family:'Orbitron'; font-weight:bold; font-size:1.2rem; margin-bottom:10px;">
+                        🚨 THREAT DETECTED
+                    </div>
+                    <strong>Entity:</strong> {ship.hostile_encounter['name']}<br>
+                    <strong>Armor:</strong> {ship.hostile_encounter['hp']} HP<br>
+                    <strong>DPS:</strong> {ship.hostile_encounter['dmg']}
+                </div>
+                """, unsafe_allow_html=True)
+                
+                st.markdown("<div class='btn-combat'>", unsafe_allow_html=True)
+                if st.button("⚔️ FIRE KINETIC CANNONS"):
                     execute_combat_round(ship)
                     st.rerun()
-                if st.button("💨 EVASIVE MANEUVERS", key="btn_evade"):
+                st.markdown("</div><br>", unsafe_allow_html=True)
+                
+                st.markdown("<div class='btn-evade'>", unsafe_allow_html=True)
+                if st.button("💨 EVASIVE MANEUVERS"):
                     evade_combat(ship)
                     st.rerun()
+                st.markdown("</div>", unsafe_allow_html=True)
             else:
                 if ship.depth_au == 0:
-                    st.info("🟢 DOCKED AT STATION ALPHA")
-                    st.markdown("<div class='action-btn'>", unsafe_allow_html=True)
+                    st.markdown("""
+                    <div class="cyber-card success" style="text-align:center;">
+                        <h4 style="color:#10b981; font-family:'Orbitron';">🟢 DOCKED AT ALPHA</h4>
+                        <p style="color:#94a3b8; font-size:14px;">Systems nominal. Ready for launch.</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    st.markdown("<div class='btn-launch'>", unsafe_allow_html=True)
                     if st.button("🚀 LAUNCH INTO THE VOID"):
                         push_orbit(ship)
                         st.rerun()
                     st.markdown("</div>", unsafe_allow_html=True)
                 else:
-                    st.warning(f"⚠️ DEEP SPACE (Tension: {min(100, int(ship.depth_au * 2))}%)")
-                    st.markdown("<div class='action-btn'>", unsafe_allow_html=True)
+                    tension = min(100, int(ship.depth_au * 2))
+                    st.markdown(f"""
+                    <div class="cyber-card warning" style="text-align:center;">
+                        <h4 style="color:#f59e0b; font-family:'Orbitron';">⚠️ DEEP SPACE</h4>
+                        <p style="color:#94a3b8; font-size:14px;">Sector Tension: {tension}%</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    st.markdown("<div class='btn-launch'>", unsafe_allow_html=True)
                     if st.button("🔥 BURN PROGRADE (DEEPER)"):
                         push_orbit(ship)
                         st.rerun()
-                    st.markdown("</div>", unsafe_allow_html=True)
+                    st.markdown("</div><br>", unsafe_allow_html=True)
                     
-                    st.markdown("<br>", unsafe_allow_html=True)
                     ret_cost = int((ship.depth_au * 2.5) * ship.get_fuel_efficiency())
-                    st.markdown("<div class='danger-btn'>", unsafe_allow_html=True)
-                    if st.button(f"🔄 BURN RETROGRADE (RETURN) \n[F: {ret_cost}]"):
+                    st.markdown("<div class='btn-combat'>", unsafe_allow_html=True)
+                    if st.button(f"🔄 BURN RETROGRADE (RETURN)\n[FUEL: {ret_cost}]"):
                         return_to_base(ship, market)
                         st.rerun()
                     st.markdown("</div>", unsafe_allow_html=True)
 
-            st.markdown("<hr>", unsafe_allow_html=True)
-            st.markdown("### CARGO HOLD")
-            render_bar(ship.get_cargo_weight(), ship.get_max_cargo(), "#8b5cf6")
-            with st.expander(f"Manifest [{len(ship.cargo)} Items]"):
+            st.markdown("### CARGO BAY")
+            st.markdown("<div class='cyber-card purple'>", unsafe_allow_html=True)
+            render_cyber_bar(ship.get_cargo_weight(), ship.get_max_cargo(), "#c084fc", "Tons")
+            with st.expander(f"View Manifest [{len(ship.cargo)} Items]"):
                 if not ship.cargo: st.write("Hold empty.")
                 else:
-                    for i in ship.cargo: st.markdown(f"<span style='font-size:12px;'>• {i['name']} ({i['weight']}t)</span>", unsafe_allow_html=True)
+                    for i in ship.cargo: st.markdown(f"<span style='font-size:13px; color:#cbd5e1;'>• {i['name']} ({i['weight']}t)</span>", unsafe_allow_html=True)
+            st.markdown("</div>", unsafe_allow_html=True)
 
         with c_log:
-            st.markdown("### A.P.E.X. MATRIX LOG")
+            st.markdown("### SYSTEM LOG")
             log_html = "".join([f"<span>{line}</span>" for line in ship.log])
-            st.markdown(f"<div class='console-log'>{log_html}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='console-wrapper'><div class='console-log'>{log_html}</div></div>", unsafe_allow_html=True)
 
-    # --- TAB 2: L.O.O.T. RADAR ---
+    # --- SENSOR ARRAY ---
     with tab_radar:
         if ship.depth_au == 0:
-            st.markdown("<div style='text-align:center; padding:40px; color:#475569;'>Radar Offline. Launch to engage.</div>", unsafe_allow_html=True)
+            st.markdown("""
+            <div style='text-align:center; padding:80px 20px; border: 1px dashed rgba(56, 189, 248, 0.3); border-radius: 8px; margin-top: 20px;'>
+                <h2 style='color:#475569;'>SENSOR ARRAY OFFLINE</h2>
+                <p style='color:#64748b;'>Launch vessel to activate L.O.O.T. array telemetry.</p>
+            </div>
+            """, unsafe_allow_html=True)
         else:
-            fig = render_radar(ship)
-            st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
-            
-            if not ship.hostile_encounter:
-                active = [i for i, b in enumerate(ship.radar_data) if not b['harvested']]
-                if active:
-                    st.markdown("**DETECTED ANOMALIES (Select to Harvest):**")
-                    cols = st.columns(3)
-                    for i, b_idx in enumerate(active[:9]):
-                        b = ship.radar_data[b_idx]
-                        f_cost = int(b['dist'] * 3 * ship.get_fuel_efficiency())
-                        with cols[i % 3]:
-                            if st.button(f"{b['name'][:8]}..\n[F: {f_cost}]", key=f"harv_{b_idx}"):
+            c_rad1, c_rad2 = st.columns([1.5, 1])
+            with c_rad1:
+                st.markdown("<div class='cyber-card'>", unsafe_allow_html=True)
+                fig = render_radar(ship)
+                st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+                st.markdown("</div>", unsafe_allow_html=True)
+            with c_rad2:
+                st.markdown("### TARGET LOCK")
+                if ship.hostile_encounter:
+                    st.markdown("<div class='cyber-card danger' style='text-align:center; color:#ef4444;'><strong>RADAR JAMMED BY HOSTILE</strong></div>", unsafe_allow_html=True)
+                else:
+                    active = [i for i, b in enumerate(ship.radar_data) if not b['harvested']]
+                    if not active:
+                        st.success("Sector clear of anomalies.")
+                    else:
+                        for b_idx in active:
+                            b = ship.radar_data[b_idx]
+                            f_cost = int(b['dist'] * 3 * ship.get_fuel_efficiency())
+                            st.markdown(f"""
+                            <div style="background:rgba(15, 23, 42, 0.6); border-left:3px solid {b['color']}; padding:10px; margin-bottom:10px; border-radius:2px;">
+                                <div style="display:flex; justify-content:space-between; align-items:center;">
+                                    <div>
+                                        <div style="color:{b['color']}; font-weight:bold; font-size:14px;">{b['name']}</div>
+                                        <div style="color:#94a3b8; font-size:12px;">Dist: {b['dist']:.1f} | Fuel Cost: {f_cost}</div>
+                                    </div>
+                                </div>
+                            </div>
+                            """, unsafe_allow_html=True)
+                            if st.button(f"HARVEST", key=f"harv_{b_idx}", help=f"Costs {f_cost} fuel"):
                                 harvest_target(ship, b_idx)
                                 st.rerun()
-                else:
-                    st.success("Sector clear of anomalies.")
-            else:
-                st.error("RADAR JAMMED BY HOSTILE FORCES.")
 
-    # --- TAB 3: ENGINEERING / UPGRADES ---
+    # --- SHIPYARD ---
     with tab_eng:
         if ship.depth_au > 0:
-            st.warning("Must be docked at Station Alpha to access Shipyard.")
+            st.markdown("""
+            <div style='text-align:center; padding:80px 20px; border: 1px dashed #ef4444; border-radius: 8px; margin-top: 20px; background:rgba(239, 68, 68, 0.05);'>
+                <h2 style='color:#ef4444;'>SHIPYARD INACCESSIBLE</h2>
+                <p style='color:#fca5a5;'>You must be docked at Alpha Station to install upgrades.</p>
+            </div>
+            """, unsafe_allow_html=True)
         else:
-            st.markdown("### STATION ALPHA SHIPYARD")
-            u_cols = st.columns(2)
+            st.markdown("### ALPHA STATION ENGINEERING")
+            u_cols = st.columns(3)
             for idx, (u_id, u_data) in enumerate(UPGRADE_TREE.items()):
                 lvl = ship.upgrades[u_id]
                 cost = int(u_data['base_cost'] * (u_data['cost_mult'] ** lvl))
                 
-                with u_cols[idx % 2]:
+                with u_cols[idx % 3]:
                     st.markdown(f"""
-                    <div class="upgrade-card">
-                        <div class="upgrade-title">{u_data['name']} [LVL {lvl}]</div>
-                        <div style="font-size:12px; color:#cbd5e1; margin-bottom:12px;">{u_data['desc']}</div>
-                        <div style="color:#fbbf24; font-weight:700; margin-bottom:8px;">{cost:,} CR</div>
-                    </div>
+                    <div class="cyber-card">
+                        <div style="color:#38bdf8; font-family:'Orbitron'; font-weight:700; font-size:16px; margin-bottom:5px;">
+                            {u_data['name']} <span style="color:#f8fafc; background:#1e293b; padding:2px 6px; border-radius:12px; font-size:12px;">LVL {lvl}</span>
+                        </div>
+                        <div style="font-size:13px; color:#cbd5e1; margin-bottom:15px; height:40px; overflow:hidden;">
+                            {u_data['desc']}
+                        </div>
+                        <div style="color:#fbbf24; font-weight:700; font-size:18px; margin-bottom:10px; font-family:'Share Tech Mono';">
+                            {cost:,} CR
+                        </div>
                     """, unsafe_allow_html=True)
-                    if st.button(f"INSTALL {u_id.upper()}", key=f"upg_{u_id}", disabled=ship.credits < cost):
+                    if st.button(f"UPGRADE", key=f"upg_{u_id}", disabled=ship.credits < cost):
                         ship.credits -= cost
                         ship.upgrades[u_id] += 1
                         ship.hull = ship.get_max_hull()
                         ship.fuel = ship.get_max_fuel()
-                        ship.add_log(f"⚙️ UPGRADE: {u_data['name']} leveled up.")
+                        ship.add_log(f"⚙️ UPGRADE: {u_data['name']} integrated.")
                         st.rerun()
+                    st.markdown("</div>", unsafe_allow_html=True)
 
-    # --- TAB 4: MARKETBOARD ---
+    # --- EXCHANGE ---
     with tab_market:
-        st.markdown("### COMMODITY EXCHANGE")
-        st.markdown("<p style='font-size:13px; color:#94a3b8;'>Scrap values fluctuate based on station demand. Values shown are per unit.</p>", unsafe_allow_html=True)
+        st.markdown("### COMMODITY EXCHANGE (ALPHA NETWORK)")
         
-        m_fig = render_market_chart(market)
-        st.plotly_chart(m_fig, use_container_width=True, config={'displayModeBar': False})
-        
-        st.markdown("**Current Market Rates:**")
-        m_cols = st.columns(3)
-        for idx, (item, price) in enumerate(market.current_prices.items()):
-            base = SCRAP_DB[item]['base']
-            color = "#10b981" if price > base else "#ef4444"
-            indicator = "▲" if price > base else "▼"
-            with m_cols[idx % 3]:
-                st.markdown(f"<div style='background:#0f172a; padding:10px; border:1px solid #1e293b; border-radius:4px; margin-bottom:10px;'>"
-                            f"<div style='font-size:11px; color:#94a3b8;'>{item}</div>"
-                            f"<div style='font-size:16px; font-weight:bold; color:{color};'>{price} CR {indicator}</div>"
-                            f"</div>", unsafe_allow_html=True)
+        c_mkt1, c_mkt2 = st.columns([2, 1])
+        with c_mkt1:
+            st.markdown("<div class='cyber-card'>", unsafe_allow_html=True)
+            m_fig = render_market_chart(market)
+            st.plotly_chart(m_fig, use_container_width=True, config={'displayModeBar': False})
+            st.markdown("</div>", unsafe_allow_html=True)
+            
+        with c_mkt2:
+            st.markdown("### LIVE TICKER")
+            for item, price in market.current_prices.items():
+                base = SCRAP_DB[item]['base']
+                color = "#10b981" if price > base else "#ef4444"
+                indicator = "▲" if price > base else "▼"
+                bg_glow = "rgba(16, 185, 129, 0.1)" if price > base else "rgba(239, 68, 68, 0.1)"
+                
+                st.markdown(f"""
+                <div style="background:{bg_glow}; border:1px solid rgba(255,255,255,0.05); padding:12px; border-radius:4px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+                    <span style="color:#e2e8f0; font-weight:600; font-size:14px;">{item}</span>
+                    <span style="color:{color}; font-family:'Share Tech Mono'; font-size:16px; font-weight:bold;">
+                        {price} {indicator}
+                    </span>
+                </div>
+                """, unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
