@@ -721,8 +721,9 @@ def harvest_target(ship, blip_idx):
         ship.add_log(f"📦 HOLD FULL: Cannot fit {item} ({weight}t).")
         ship.add_diag(f"Cargo bay capacity exceeded. Rejected {weight}t of {item}.")
     else:
-        ship.cargo.append({"name": item, "weight": weight})
-        ship.add_log(f"✅ SECURED: {item} | Mass: {weight}t")
+        # Added proximity tracking: Store the depth the item was harvested at
+        ship.cargo.append({"name": item, "weight": weight, "origin_depth": ship.depth_au})
+        ship.add_log(f"✅ SECURED: {item} | Mass: {weight}t | Depth: {ship.depth_au:.1f} AU")
         ship.add_diag(f"Extraction successful. Transferred {item} to Cargo Bay 1.")
         check_mission_completion(ship)
 
@@ -793,20 +794,34 @@ def return_to_base(ship, market, missions):
     
     check_mission_completion(ship)
     
-    total_payout = 0
+    # Updated Market Payout with Proximity/Depth Bonus
+    total_base_payout = 0
+    total_depth_bonus = 0
     item_counts = {}
+    
     for item in ship.cargo:
         name = item['name']
-        price = market.current_prices[name]
-        total_payout += price
+        base_price = market.current_prices[name]
+        
+        # Calculate Import Bonus: +5% value per AU of depth where it was harvested
+        origin_depth = item.get('origin_depth', 0.0)
+        bonus_multiplier = origin_depth * 0.05
+        item_bonus = int(base_price * bonus_multiplier)
+        
+        total_base_payout += base_price
+        total_depth_bonus += item_bonus
         item_counts[name] = item_counts.get(name, 0) + 1
+        
+    total_payout = total_base_payout + total_depth_bonus
         
     if total_payout > 0:
         ship.credits += total_payout
         manifest_str = ", ".join([f"{k}x{v}" for k,v in item_counts.items()])
         ship.add_log(f"💰 MARKET SALE: {manifest_str}")
+        if total_depth_bonus > 0:
+            ship.add_log(f"✨ DEEP SPACE IMPORT BONUS: +{total_depth_bonus:,.0f} CR")
         ship.add_log(f"💰 TOTAL PROFIT: {total_payout:,.0f} CR.")
-        ship.add_diag(f"Cargo offloaded to Alpha Network Exchange. Gross yield: {total_payout}.")
+        ship.add_diag(f"Cargo offloaded. Base: {total_base_payout}. Import Bonus: {total_depth_bonus}. Gross yield: {total_payout}.")
     
     ship.cargo = []
     ship.hull = ship.get_max_hull()
@@ -1035,7 +1050,9 @@ def main():
             with st.expander(f"View Active Manifest [{len(ship.cargo)} Items]"):
                 if not ship.cargo: st.write("Hold empty. Awaiting salvage.")
                 else:
-                    for i in ship.cargo: st.markdown(f"<span style='font-size:13px; color:#cbd5e1;'>• {i['name']} ({i['weight']}t)</span>", unsafe_allow_html=True)
+                    for i in ship.cargo:
+                        depth_str = f" [Extracted @ {i.get('origin_depth', 0.0):.1f} AU]"
+                        st.markdown(f"<span style='font-size:13px; color:#cbd5e1;'>• {i['name']} ({i['weight']}t){depth_str}</span>", unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
 
         with c_log:
