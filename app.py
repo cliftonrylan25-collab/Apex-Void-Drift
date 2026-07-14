@@ -242,7 +242,7 @@ st.markdown(ADVANCED_CSS, unsafe_allow_html=True)
 # GAME CONSTANTS & DATABASES
 # ==========================================
 
-# Interstellar System Modifiers
+# Interstellar System Modifiers + Coordinates for Map
 STAR_SYSTEMS = {
     "Alpha Centauri Sector": {
         "desc": "Standard operations sector. Balanced threat and resource distribution.",
@@ -250,7 +250,9 @@ STAR_SYSTEMS = {
         "loot_mult": 1.0,
         "hazard_mult": 1.0,
         "jump_cost": 0,
-        "color": "#38bdf8"
+        "color": "#38bdf8",
+        "x": 0,
+        "y": 0
     },
     "Tartarus Expanse": {
         "desc": "Lawless outer rim. High pirate activity, slightly elevated salvage value.",
@@ -258,7 +260,9 @@ STAR_SYSTEMS = {
         "loot_mult": 1.3,
         "hazard_mult": 1.0,
         "jump_cost": 15000,
-        "color": "#ef4444"
+        "color": "#ef4444",
+        "x": 20,
+        "y": -15
     },
     "Aurelian Reach": {
         "desc": "Dense asteroid fields. Extremely rich in rare minerals, but high collision hazard.",
@@ -266,7 +270,9 @@ STAR_SYSTEMS = {
         "loot_mult": 2.0,
         "hazard_mult": 2.5,
         "jump_cost": 35000,
-        "color": "#f59e0b"
+        "color": "#f59e0b",
+        "x": -25,
+        "y": 10
     },
     "The Void Abyss": {
         "desc": "Deep space anomaly. Extreme hostile presence and unparalleled wealth.",
@@ -274,7 +280,9 @@ STAR_SYSTEMS = {
         "loot_mult": 2.5,
         "hazard_mult": 1.5,
         "jump_cost": 100000,
-        "color": "#c084fc"
+        "color": "#c084fc",
+        "x": 40,
+        "y": 35
     }
 }
 
@@ -334,7 +342,6 @@ class DynamicMarket:
     def simulate_cycle(self):
         self.market_event = None
         
-        # Random Market Events
         if random.random() > 0.90:
             event_type = random.choice(["boom", "crash", "shortage"])
             target = random.choice(list(SCRAP_DB.keys()))
@@ -564,14 +571,12 @@ def scan_sector(ship):
     radar_lvl = ship.upgrades['radar']
     system_loot_mod = STAR_SYSTEMS[ship.current_system]['loot_mult']
     
-    # Scale number of blips based on system wealth
     num_blips = int(random.randint(4, 8 + radar_lvl) * system_loot_mod)
     
     for _ in range(num_blips):
         angle = random.uniform(0, 360)
         distance = random.uniform(1.0, 15.0 + (radar_lvl * 2.5))
         
-        # System mod applies to rarity thresholds
         roll = random.random() + (ship.depth_au * 0.01) + (radar_lvl * 0.03) + (system_loot_mod * 0.05)
         
         if roll > 0.98: r, c, n = 6, "#fb7185", "Sentient Core"
@@ -588,7 +593,6 @@ def scan_sector(ship):
     ship.add_diag(f"L.O.O.T Array sweep complete. Processing signal-to-noise ratio: {random.uniform(85.5, 99.9):.1f}%")
 
 def trigger_encounter(ship):
-    # Boss Trigger Check (Only in Void Abyss or super deep)
     if ship.depth_au >= 60.0 and ship.current_system == "The Void Abyss" and not ship.void_relic and not ship.sentinel_encountered:
         ship.hostile_encounter = {
             "name": "THE VOID SENTINEL",
@@ -601,7 +605,6 @@ def trigger_encounter(ship):
         ship.add_diag("MASSIVE GRAVITATIONAL DISTURBANCE DETECTED. CLASS-OMEGA THREAT IMMINENT.")
         return
 
-    # Standard Encounter Scaling
     system_threat_mod = STAR_SYSTEMS[ship.current_system]['threat_mult']
     threat_chance = (0.20 + (ship.depth_au * 0.005)) * system_threat_mod
     
@@ -613,7 +616,6 @@ def trigger_encounter(ship):
             {"name": "Corrupted Frigate", "hp": 500, "dmg": 110}
         ]
         
-        # Scale tier based on depth and system threat
         tier_float = (ship.depth_au / 20) + (system_threat_mod * 0.5)
         tier = min(3, int(tier_float))
         
@@ -721,7 +723,6 @@ def harvest_target(ship, blip_idx):
         ship.add_log(f"📦 HOLD FULL: Cannot fit {item} ({weight}t).")
         ship.add_diag(f"Cargo bay capacity exceeded. Rejected {weight}t of {item}.")
     else:
-        # Added proximity tracking: Store the depth the item was harvested at
         ship.cargo.append({"name": item, "weight": weight, "origin_depth": ship.depth_au})
         ship.add_log(f"✅ SECURED: {item} | Mass: {weight}t | Depth: {ship.depth_au:.1f} AU")
         ship.add_diag(f"Extraction successful. Transferred {item} to Cargo Bay 1.")
@@ -794,7 +795,6 @@ def return_to_base(ship, market, missions):
     
     check_mission_completion(ship)
     
-    # Updated Market Payout with Proximity/Depth Bonus
     total_base_payout = 0
     total_depth_bonus = 0
     item_counts = {}
@@ -803,7 +803,6 @@ def return_to_base(ship, market, missions):
         name = item['name']
         base_price = market.current_prices[name]
         
-        # Calculate Import Bonus: +5% value per AU of depth where it was harvested
         origin_depth = item.get('origin_depth', 0.0)
         bonus_multiplier = origin_depth * 0.05
         item_bonus = int(base_price * bonus_multiplier)
@@ -839,16 +838,65 @@ def return_to_base(ship, market, missions):
 # UI RENDERING HELPERS
 # ==========================================
 def render_cyber_bar(current, maximum, color_hex, unit=""):
-    pct = min(100, max(0, int((current / maximum) * 100)))
+    # [PATCHED] Safely handle zero division when shields are not upgraded
+    if maximum <= 0:
+        pct = 0
+        max_display = 0.0
+    else:
+        pct = min(100, max(0, int((current / maximum) * 100)))
+        max_display = maximum
+        
     st.markdown(f"""
     <div class="progress-container">
         <div class="progress-fill" style="width: {pct}%; background-color: {color_hex}; box-shadow: 0 0 10px {color_hex};"></div>
     </div>
     <div style="display:flex; justify-content:space-between; font-size:12px; color:#cbd5e1; margin-top:4px; font-family:'Share Tech Mono', monospace;">
         <span>{pct}%</span>
-        <span>{current:.1f} / {maximum:.1f} {unit}</span>
+        <span>{current:.1f} / {max_display:.1f} {unit}</span>
     </div>
     """, unsafe_allow_html=True)
+
+def render_star_map(ship):
+    fig = go.Figure()
+    
+    x_coords = []
+    y_coords = []
+    colors = []
+    names = []
+    sizes = []
+    hover_texts = []
+    
+    for sys_name, sys_data in STAR_SYSTEMS.items():
+        x_coords.append(sys_data['x'])
+        y_coords.append(sys_data['y'])
+        colors.append(sys_data['color'])
+        names.append(sys_name)
+        sizes.append(25 if ship.current_system == sys_name else 12)
+        
+        status = "📍 CURRENT LOCATION" if ship.current_system == sys_name else f"Toll: {sys_data['jump_cost']:,} CR"
+        hover_texts.append(f"<b>{sys_name}</b><br>{sys_data['desc']}<br>{status}")
+        
+    fig.add_trace(go.Scatter(
+        x=x_coords, y=y_coords,
+        mode='markers+text',
+        marker=dict(size=sizes, color=colors, line=dict(width=1, color='#e2e8f0')),
+        text=names,
+        textposition="top center",
+        textfont=dict(color="#cbd5e1", family="Orbitron", size=11),
+        hoverinfo="text",
+        hovertext=hover_texts
+    ))
+    
+    fig.update_layout(
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(15, 23, 42, 0.4)',
+        xaxis=dict(showgrid=True, gridcolor='rgba(56, 189, 248, 0.1)', zeroline=True, zerolinecolor='rgba(56, 189, 248, 0.3)', showticklabels=False),
+        yaxis=dict(showgrid=True, gridcolor='rgba(56, 189, 248, 0.1)', zeroline=True, zerolinecolor='rgba(56, 189, 248, 0.3)', showticklabels=False),
+        margin=dict(l=10, r=10, t=10, b=10),
+        height=500,
+        showlegend=False
+    )
+    return fig
 
 def render_market_chart(market):
     fig = go.Figure()
@@ -972,9 +1020,9 @@ def main():
         render_cyber_bar(ship.fuel, ship.get_max_fuel(), f_color)
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # MAIN INTERFACE TABS
-    tab_nav, tab_radar, tab_eng, tab_gate, tab_contract, tab_market, tab_diag = st.tabs([
-        "🎛️ COMMAND MODULE", "📡 SENSOR ARRAY", "🛠️ SHIPYARD", "🌌 JUMP GATE", "📜 CONTRACTS", "📈 EXCHANGE", "💻 DIAGNOSTICS"
+    # MAIN INTERFACE TABS (ADDED MAP TAB)
+    tab_nav, tab_radar, tab_map, tab_eng, tab_gate, tab_contract, tab_market, tab_diag = st.tabs([
+        "🎛️ COMMAND MODULE", "📡 SENSOR ARRAY", "🗺️ STAR MAP", "🛠️ SHIPYARD", "🌌 JUMP GATE", "📜 CONTRACTS", "📈 EXCHANGE", "💻 DIAGNOSTICS"
     ])
 
     # --- COMMAND MODULE ---
@@ -1104,6 +1152,15 @@ def main():
                             if st.button(f"INITIATE HARVEST BURN", key=f"harv_{b_idx}"):
                                 harvest_target(ship, b_idx)
                                 st.rerun()
+
+    # --- STAR MAP (NEW) ---
+    with tab_map:
+        st.markdown("### INTERACTIVE STAR MAP")
+        st.markdown("<p style='color:#94a3b8; font-size:14px;'>Pan and zoom to explore the known sectors. Your current location is highlighted.</p>", unsafe_allow_html=True)
+        st.markdown("<div class='cyber-card'>", unsafe_allow_html=True)
+        map_fig = render_star_map(ship)
+        st.plotly_chart(map_fig, use_container_width=True)
+        st.markdown("</div>", unsafe_allow_html=True)
 
     # --- SHIPYARD ---
     with tab_eng:
@@ -1240,7 +1297,7 @@ def main():
                             st.rerun()
                     st.markdown("</div>", unsafe_allow_html=True)
 
-    # --- JUMP GATE (NEW) ---
+    # --- JUMP GATE ---
     with tab_gate:
         if ship.depth_au > 0:
             st.markdown("""
@@ -1300,7 +1357,6 @@ def main():
                             else:
                                 st.error("Insufficient Funds")
                     st.markdown("</div>", unsafe_allow_html=True)
-
 
     # --- CONTRACTS / MISSIONS ---
     with tab_contract:
@@ -1384,4 +1440,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
