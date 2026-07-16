@@ -1,11 +1,7 @@
 import streamlit as st
-import pandas as pd
-import numpy as np
 import plotly.graph_objects as go
 import random
 import datetime
-import math
-import time
 
 # ==========================================
 # PAGE CONFIGURATION & INITIALIZATION
@@ -396,8 +392,9 @@ class MissionBoard:
                 reward = d * 850
                 pool.append({'id': i, 'type': 'depth', 'target': float(d), 'amount': 1, 'reward': int(reward), 'desc': f'Survey: Reach {d}.0 AU Apoapsis'})
             else:
+                kill_amt = random.randint(3, 7)
                 reward = random.randint(25000, 75000)
-                pool.append({'id': i, 'type': 'combat', 'target': 'Bounty', 'amount': random.randint(3, 7), 'reward': reward, 'desc': f'Bounty: Destroy {pool[-1]["amount"] if pool else 5} Hostiles'})
+                pool.append({'id': i, 'type': 'combat', 'target': 'Bounty', 'amount': kill_amt, 'reward': reward, 'desc': f'Bounty: Destroy {kill_amt} Hostiles'})
         return pool
 
 class SalvageShip:
@@ -693,6 +690,9 @@ def evade_combat(ship):
 def harvest_target(ship, blip_idx):
     if ship.hostile_encounter:
         ship.add_log("⚠️ CANNOT HARVEST: Hostile active in sector!")
+        return
+
+    if blip_idx >= len(ship.radar_data) or ship.radar_data[blip_idx]['harvested']:
         return
 
     blip = ship.radar_data[blip_idx]
@@ -1071,7 +1071,9 @@ def main():
                         st.rerun()
                     st.markdown("</div>", unsafe_allow_html=True)
                 else:
-                    tension = min(100, int(ship.depth_au * 1.5))
+                    system_threat_mod = STAR_SYSTEMS[ship.current_system]['threat_mult']
+                    threat_chance = (0.20 + (ship.depth_au * 0.005)) * system_threat_mod
+                    tension = min(100, int(threat_chance * 100))
                     st.markdown(f"""
                     <div class="cyber-card warning" style="text-align:center;">
                         <h4 style="color:#f59e0b; font-family:'Orbitron';">⚠️ DEEP SPACE ORBIT</h4>
@@ -1086,6 +1088,13 @@ def main():
                     st.markdown("</div><br>", unsafe_allow_html=True)
                     
                     ret_cost = int((ship.depth_au * 3.0) * ship.get_fuel_efficiency())
+                    if ship.fuel < ret_cost:
+                        st.markdown(f"""
+                        <div class="cyber-card danger" style="text-align:center; padding:10px;">
+                            <strong style="color:#ef4444;">⚠️ INSUFFICIENT DELTA-V FOR SAFE RETURN ({ship.fuel:.0f} / {ret_cost})</strong><br>
+                            <span style="font-size:12px; color:#94a3b8;">Attempting the burn now will strand the vessel.</span>
+                        </div>
+                        """, unsafe_allow_html=True)
                     st.markdown("<div class='btn-combat'>", unsafe_allow_html=True)
                     if st.button(f"🔄 BURN RETROGRADE (RETURN TO BASE)\n[REQ. DELTA-V: {ret_cost}]"):
                         return_to_base(ship, market, missions)
@@ -1095,6 +1104,11 @@ def main():
             st.markdown("### CARGO HOLD")
             st.markdown("<div class='cyber-card purple'>", unsafe_allow_html=True)
             render_cyber_bar(ship.get_cargo_weight(), ship.get_max_cargo(), "#c084fc", "Tons")
+            est_value = 0
+            for i in ship.cargo:
+                base_price = market.current_prices[i['name']]
+                est_value += base_price + int(base_price * (i.get('origin_depth', 0.0) * 0.05))
+            st.markdown(f"<div style='margin-top:8px; font-size:13px; color:#94a3b8;'>Est. Market Value: <span style='color:#fbbf24; font-weight:bold; font-family:\"Share Tech Mono\";'>{est_value:,} CR</span></div>", unsafe_allow_html=True)
             with st.expander(f"View Active Manifest [{len(ship.cargo)} Items]"):
                 if not ship.cargo: st.write("Hold empty. Awaiting salvage.")
                 else:
@@ -1370,7 +1384,18 @@ def main():
                 <h4 style="color:#f59e0b; margin-top:0;">📜 ACTIVE CONTRACT</h4>
                 <p style="font-size:18px;"><strong>Objective Parameters:</strong> {c['desc']}</p>
                 <p style="color:#fbbf24; font-size:20px; font-family:'Share Tech Mono';"><strong>Bounty Reward:</strong> {c['reward']:,} CR</p>
-                <p style="font-size:13px; color:#94a3b8;">*Contract will parse automatically upon returning to base if objective metrics are verified.*</p>
+            """, unsafe_allow_html=True)
+
+            if c['type'] == 'gather':
+                cur = sum(1 for i in ship.cargo if i['name'] == c['target'])
+                render_cyber_bar(cur, c['amount'], "#f59e0b", "Collected")
+            elif c['type'] == 'depth':
+                render_cyber_bar(ship.max_depth, c['target'], "#f59e0b", "AU")
+            elif c['type'] == 'combat':
+                render_cyber_bar(ship.bounties_cleared_this_run, c['amount'], "#f59e0b", "Kills")
+
+            st.markdown("""
+                <p style="font-size:13px; color:#94a3b8; margin-top:10px;">*Objective completes automatically the instant these parameters are met.*</p>
             </div>
             """, unsafe_allow_html=True)
             if st.button("ABANDON CONTRACT"):
@@ -1440,3 +1465,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
