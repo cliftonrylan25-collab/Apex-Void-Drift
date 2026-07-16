@@ -1339,7 +1339,6 @@ def main():
                             <div style="font-size:13px; color:#cbd5e1; margin-bottom:15px; min-height: 40px;">
                                 {sys_data['desc']}
                             </div>
-                            
                             <div style="background:rgba(0,0,0,0.3); padding:10px; border-radius:4px; margin-bottom:15px;">
                                 <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
                                     <span style="color:#94a3b8;">Hostile Threat Multiplier:</span>
