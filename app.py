@@ -247,13 +247,13 @@ STAR_SYSTEMS = {
         "desc": "Standard operations sector. Balanced threat and resource distribution.",
         "threat_mult": 1.0, "loot_mult": 1.0, "hazard_mult": 1.0, "jump_cost": 0, "color": "#38bdf8"
     },
+    "LC-26 Wolfpack Territory": {
+        "desc": "Fierce combat zone and high-speed transit lane. Pack tactics required.",
+        "threat_mult": 1.8, "loot_mult": 1.5, "hazard_mult": 1.2, "jump_cost": 25000, "color": "#10b981"
+    },
     "Tartarus Expanse": {
         "desc": "Lawless outer rim. High pirate activity, slightly elevated salvage value.",
         "threat_mult": 2.2, "loot_mult": 1.3, "hazard_mult": 1.0, "jump_cost": 15000, "color": "#ef4444"
-    },
-    "LC-26 Wolfpack Territory": {
-        "desc": "Fierce mercenary controlled zone. High agility hostiles, heavily fortified salvage.",
-        "threat_mult": 1.8, "loot_mult": 1.6, "hazard_mult": 1.2, "jump_cost": 25000, "color": "#10b981"
     },
     "Aurelian Reach": {
         "desc": "Dense asteroid fields. Extremely rich in rare minerals, but high collision hazard.",
@@ -269,7 +269,6 @@ SCRAP_DB = {
     "Iron-Carbon": {"base": 15, "volatility": 0.05, "weight": 2.0, "rarity": 1},
     "Copper Spools": {"base": 30, "volatility": 0.08, "weight": 1.5, "rarity": 1},
     "Silica Glass": {"base": 45, "volatility": 0.10, "weight": 1.2, "rarity": 1},
-    "Acty-Van Chassis": {"base": 85, "volatility": 0.15, "weight": 5.0, "rarity": 2},
     "Titanium Struts": {"base": 75, "volatility": 0.12, "weight": 4.0, "rarity": 2},
     "Plutonium Rods": {"base": 120, "volatility": 0.18, "weight": 3.0, "rarity": 2},
     "Quantum Circuits": {"base": 180, "volatility": 0.25, "weight": 0.5, "rarity": 3},
@@ -296,7 +295,7 @@ MODULE_DB = {
         'Standard Drive': {'cost': 0, 'desc': 'Standard fuel consumption. Nominal transfers.'},
         'Overdrive Thruster': {'cost': 30000, 'desc': 'Double depth progression. Double fuel cost.'},
         'Eco-Pulse Drive': {'cost': 30000, 'desc': 'Half fuel cost. Half depth progression.'},
-        'AMG Kompressor Drive': {'cost': 75000, 'desc': 'Aggressive burn vector. High thrust, high consumption.'}
+        'AMG Kompressor Drive': {'cost': 55000, 'desc': 'High-performance thrust. +20% Evasion, increased fuel burn.'}
     },
     'weapon': {
         'Standard Cannons': {'cost': 0, 'desc': 'Standard kinetic output.'},
@@ -305,8 +304,8 @@ MODULE_DB = {
     },
     'scanner': {
         'Optical Sensors': {'cost': 0, 'desc': 'Standard signature detection.'},
-        'SX65 Retro-Cam Array': {'cost': 20000, 'desc': 'Vintage high-fidelity optics for pristine visual feeds.'},
-        'Deep-Penetration LiDAR': {'cost': 45000, 'desc': 'Reveals anomaly names before harvesting.'}
+        'Deep-Penetration LiDAR': {'cost': 45000, 'desc': 'Reveals anomaly names before harvesting.'},
+        'SX65 Retro-Cam Array': {'cost': 35000, 'desc': 'Vintage optics detect smaller, rarer micro-anomalies.'}
     }
 }
 
@@ -368,7 +367,7 @@ class MissionBoard:
         
     def generate_new(self):
         pool = []
-        targets = ["Quantum Circuits", "Isotope Cells", "Dark Matter", "Titanium Struts", "Acty-Van Chassis"]
+        targets = ["Quantum Circuits", "Isotope Cells", "Dark Matter", "Titanium Struts", "Neutronium Plating"]
         for i in range(4):
             roll = random.random()
             if roll > 0.6:
@@ -395,7 +394,7 @@ class MissionBoard:
         return obj
 
 class SalvageShip:
-    def __init__(self):
+    def __init__(self, ship_class="Vagabond"):
         self.credits = 1500
         self.depth_au = 0.0 
         self.max_depth = 0.0
@@ -414,15 +413,31 @@ class SalvageShip:
         self.active_engine = 'Standard Drive'
         self.active_weapon = 'Standard Cannons'
         self.active_scanner = 'Optical Sensors'
+        self.ship_class = ship_class
         self.hull = self.get_max_hull()
         self.shields = self.get_max_shields()
         self.fuel = self.get_max_fuel()
         self.hostile_encounter = None
 
-    def get_max_hull(self): return 150 + (self.upgrades['hull'] * UPGRADE_TREE['hull']['effect'])
-    def get_max_shields(self): return (self.upgrades['shields'] * UPGRADE_TREE['shields']['effect'])
-    def get_max_fuel(self): return 300 + (self.upgrades['fuel'] * UPGRADE_TREE['fuel']['effect'])
-    def get_max_cargo(self): return 50.0 + (self.upgrades['cargo'] * UPGRADE_TREE['cargo']['effect'])
+    def get_max_hull(self): 
+        base = 150 + (self.upgrades['hull'] * UPGRADE_TREE['hull']['effect'])
+        if self.ship_class == 'Freighter': base *= 1.5
+        elif self.ship_class == 'Scout': base *= 0.8
+        return int(base)
+        
+    def get_max_shields(self): 
+        return (self.upgrades['shields'] * UPGRADE_TREE['shields']['effect'])
+        
+    def get_max_fuel(self): 
+        base = 300 + (self.upgrades['fuel'] * UPGRADE_TREE['fuel']['effect'])
+        if self.ship_class == 'Scout': base *= 1.2
+        return int(base)
+        
+    def get_max_cargo(self): 
+        base = 50.0 + (self.upgrades['cargo'] * UPGRADE_TREE['cargo']['effect'])
+        if self.ship_class == 'Freighter': base *= 2.0
+        elif self.ship_class == 'Scout': base *= 0.6
+        return base
     
     def get_firepower(self): 
         base = 25 + (self.upgrades['weapons'] * UPGRADE_TREE['weapons']['effect'])
@@ -441,6 +456,9 @@ class SalvageShip:
         base = min(0.65, self.upgrades['apex'] * UPGRADE_TREE['apex']['effect'])
         if self.active_weapon == 'Phase Emitter': base += 0.15
         elif self.active_weapon == 'Heavy Plasma Battery': base -= 0.10
+        if self.active_engine == 'AMG Kompressor Drive': base += 0.20
+        if self.ship_class == 'Scout': base += 0.15
+        elif self.ship_class == 'Freighter': base -= 0.10
         return max(0.0, min(0.90, base))
 
     def get_cargo_weight(self):
@@ -509,7 +527,7 @@ class SalvageShip:
 
     @classmethod
     def from_dict(cls, data):
-        obj = cls()
+        obj = cls(ship_class=data.get('ship_class', 'Vagabond'))
         for key, value in data.items():
             if hasattr(obj, key):
                 setattr(obj, key, value)
@@ -594,14 +612,17 @@ def process_random_event(ship):
         hull_repair = random.randint(30, 80)
         ship.hull = min(ship.get_max_hull(), ship.hull + hull_repair)
         ship.add_log(f"🛠️ NANOBOT CLOUD: Flew through automated repair mist. Hull restored by {hull_repair}.")
-    elif roll > 0.82:
-        heal_amt = int(ship.get_max_hull() * 0.25)
-        ship.hull = min(ship.get_max_hull(), ship.hull + heal_amt)
-        ship.add_log(f"🍱 SURVIVAL CACHE: Recovered intact brown-sugar glazed musubi rations. Crew morale and efficiency restored.")
+    elif roll > 0.80:
+        found_cr = random.randint(1500, 4500)
+        ship.credits += found_cr
+        ship.add_log(f"📦 EMERGENCY CACHE: Recovered lost survival supplies yielding {found_cr} CR.")
 
 def scan_sector(ship):
     blips = []
     radar_lvl = ship.upgrades['radar']
+    if ship.active_scanner == 'SX65 Retro-Cam Array': 
+        radar_lvl += 2
+        
     system_loot_mod = STAR_SYSTEMS[ship.current_system]['loot_mult']
     num_blips = int(random.randint(4, 8 + radar_lvl) * system_loot_mod)
     
@@ -692,7 +713,7 @@ def evade_combat(ship):
     f_cost = 45
     if ship.active_engine == 'Overdrive Thruster': f_cost = 90
     elif ship.active_engine == 'Eco-Pulse Drive': f_cost = 25
-    elif ship.active_engine == 'AMG Kompressor Drive': f_cost = 110
+    elif ship.active_engine == 'AMG Kompressor Drive': f_cost = 60
     
     fuel_cost = int(f_cost * ship.get_fuel_efficiency())
     
@@ -751,6 +772,7 @@ def push_orbit(ship):
 
     base_cost = 40
     depth_min, depth_max = 2.5, 6.0
+    
     if ship.active_engine == 'Overdrive Thruster':
         base_cost = 85
         depth_min, depth_max = 6.0, 14.0
@@ -758,8 +780,8 @@ def push_orbit(ship):
         base_cost = 20
         depth_min, depth_max = 1.0, 3.0
     elif ship.active_engine == 'AMG Kompressor Drive':
-        base_cost = 120
-        depth_min, depth_max = 8.0, 18.0
+        base_cost = 55
+        depth_min, depth_max = 5.0, 10.0
 
     f_cost = int(base_cost * ship.get_fuel_efficiency())
     
@@ -908,30 +930,48 @@ def render_radar(ship):
 # MAIN UI & GAME LOOP
 # ==========================================
 def main():
-    # --- INTERNAL AUTHENTICATION MODULE ---
     if 'logged_in' not in st.session_state:
         st.session_state.logged_in = False
         st.session_state.username = None
 
     if not st.session_state.logged_in:
-        st.markdown("<div class='cyber-card' style='max-width: 400px; margin: 100px auto; text-align: center;'>", unsafe_allow_html=True)
+        st.markdown("<div class='cyber-card' style='max-width: 450px; margin: 100px auto; text-align: center;'>", unsafe_allow_html=True)
         st.markdown("<h2 style='color: #38bdf8;'>A.P.E.X. TERMINAL LOGIN</h2>", unsafe_allow_html=True)
-        st.markdown("<p style='color: #94a3b8; font-size: 12px; font-family: \"Share Tech Mono\"; margin-bottom: 25px;'>SYSTEM ARCHITECTS: R. CLIFTON & H. BARTLETT</p>", unsafe_allow_html=True)
-        user = st.text_input("PILOT CALLSIGN")
-        pwd = st.text_input("ACCESS CODE", type="password")
-        if st.button("AUTHORIZE LINK"):
-            if user and pwd:
-                st.session_state.logged_in = True
-                st.session_state.username = user.strip().upper()
-                st.rerun()
-            else:
-                st.error("CREDENTIALS REQUIRED FOR SECURE LINK")
+        
+        tab_log, tab_reg = st.tabs(["EXISTING PILOT", "NEW REGISTRATION"])
+        with tab_log:
+            user = st.text_input("PILOT CALLSIGN", key="l_user")
+            pwd = st.text_input("ACCESS CODE", type="password", key="l_pwd")
+            if st.button("AUTHORIZE LINK"):
+                if user and pwd:
+                    st.session_state.logged_in = True
+                    st.session_state.username = user.strip().upper()
+                    st.rerun()
+                else:
+                    st.error("CREDENTIALS REQUIRED")
+        with tab_reg:
+            new_user = st.text_input("NEW CALLSIGN", key="r_user")
+            new_pwd = st.text_input("NEW ACCESS CODE", type="password", key="r_pwd")
+            ship_class = st.selectbox("SHIP CLASS", ["Scout (High Evasion, High Speed, Low Cargo)", "Freighter (High Cargo, High Hull, Low Speed)", "Vagabond (Balanced Standard)"])
+            if st.button("INITIALIZE PILOT"):
+                if new_user and new_pwd:
+                    st.session_state.logged_in = True
+                    st.session_state.username = new_user.strip().upper()
+                    st.session_state.starting_class = ship_class.split(" ")[0]
+                    st.rerun()
+                else:
+                    st.error("ALL FIELDS REQUIRED")
+                    
         st.markdown("</div>", unsafe_allow_html=True)
         st.stop()
 
-    # --- INITIALIZE FROM SAVE FILE ---
     if 'ship' not in st.session_state:
         ship, market, missions = load_game(st.session_state.username)
+        if 'starting_class' in st.session_state and not os.path.exists(get_save_path(st.session_state.username)):
+            ship.ship_class = st.session_state.starting_class
+            ship.hull = ship.get_max_hull()
+            ship.fuel = ship.get_max_fuel()
+            ship.cargo = []
         st.session_state.ship = ship
         st.session_state.market = market
         st.session_state.missions = missions
@@ -940,7 +980,6 @@ def main():
     market = st.session_state.market
     missions = st.session_state.missions
 
-    # HEADER & HELP POPOVER
     header_col1, header_col2 = st.columns([0.9, 0.1])
     with header_col1:
         st.markdown(f"<h1>A.P.E.X. VOID DRIFT <span style='font-size:16px; color:#94a3b8; font-weight:normal;'>| WELCOME BACK, {st.session_state.username}</span></h1>", unsafe_allow_html=True)
@@ -957,11 +996,10 @@ def main():
             """)
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # VITALS RIBBON
     v0, v1, v2, v3, v4, v5 = st.columns([1, 1.2, 1, 1, 1, 1])
     with v0:
         sys_color = STAR_SYSTEMS[ship.current_system]['color']
-        st.markdown(f'<div class="cyber-card" style="border-top-color:{sys_color};"><div class="metric-title">Active Sector</div><div style="color:{sys_color}; font-weight:bold; font-size:1.1rem; font-family:\'Orbitron\'; line-height:1.2; margin-top:5px;">{ship.current_system}</div></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="cyber-card" style="border-top-color:{sys_color};"><div class="metric-title">{ship.ship_class} Class</div><div style="color:{sys_color}; font-weight:bold; font-size:1.1rem; font-family:\'Orbitron\'; line-height:1.2; margin-top:5px;">{ship.current_system}</div></div>', unsafe_allow_html=True)
     with v1:
         relic_badge = "💎 VOID RELIC" if ship.void_relic else ""
         st.markdown(f'<div class="cyber-card purple"><div class="metric-title">Depth / Record {relic_badge}</div><div class="metric-value">{ship.depth_au:.1f} / {ship.max_depth:.1f}</div></div>', unsafe_allow_html=True)
@@ -984,12 +1022,10 @@ def main():
         render_cyber_bar(ship.fuel, ship.get_max_fuel(), f_color)
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # MAIN INTERFACE TABS
     tab_nav, tab_radar, tab_eng, tab_gate, tab_contract, tab_market, tab_diag = st.tabs([
         "🎛️ COMMAND MODULE", "📡 SENSOR ARRAY", "🛠️ SHIPYARD", "🌌 JUMP GATE", "📜 CONTRACTS", "📈 EXCHANGE", "💻 DIAGNOSTICS"
     ])
 
-    # --- COMMAND MODULE ---
     with tab_nav:
         c_act, c_log = st.columns([1.2, 1.5])
         with c_act:
@@ -1076,7 +1112,6 @@ def main():
             log_html = "".join([f"<span>{line}</span>" for line in ship.log])
             st.markdown(f"<div class='console-wrapper'><div class='console-log'>{log_html}</div></div>", unsafe_allow_html=True)
             
-            # --- NEW MANUAL SAVE/LOAD SYSTEM FOR iPAD ---
             st.markdown("<br>### DATA CHIP (MANUAL SAVE/LOAD)", unsafe_allow_html=True)
             c_dl, c_ul = st.columns(2)
             
@@ -1109,7 +1144,6 @@ def main():
                             except Exception as e:
                                 st.error("Corrupted Data Chip.")
 
-    # --- SENSOR ARRAY ---
     with tab_radar:
         if ship.depth_au == 0:
             st.markdown("""
@@ -1153,7 +1187,6 @@ def main():
                                 harvest_target(ship, b_idx)
                                 save_state_and_rerun()
 
-    # --- SHIPYARD ---
     with tab_eng:
         if ship.depth_au > 0:
             st.markdown("""
@@ -1287,7 +1320,6 @@ def main():
                             save_state_and_rerun()
                     st.markdown("</div>", unsafe_allow_html=True)
 
-    # --- JUMP GATE ---
     with tab_gate:
         if ship.depth_au > 0:
             st.markdown("""
@@ -1345,7 +1377,6 @@ def main():
                                 st.error("Insufficient Funds")
                     st.markdown("</div>", unsafe_allow_html=True)
 
-    # --- CONTRACTS / MISSIONS ---
     with tab_contract:
         st.markdown("### ALPHA STATION BOUNTY & EXPLORATION BOARD")
         st.write(f"**Total Contracts Successfully Fulfilled:** {ship.completed_contracts}")
@@ -1382,7 +1413,6 @@ def main():
                             save_state_and_rerun()
                         st.markdown("</div>", unsafe_allow_html=True)
 
-    # --- EXCHANGE ---
     with tab_market:
         st.markdown("### COMMODITY EXCHANGE (ALPHA NETWORK)")
         c_mkt1, c_mkt2 = st.columns([2.5, 1])
@@ -1409,7 +1439,6 @@ def main():
                 </div>
                 """, unsafe_allow_html=True)
 
-    # --- SYSTEM DIAGNOSTICS ---
     with tab_diag:
         st.markdown("### A.P.E.X. MATRIX INTERNAL DIAGNOSTICS")
         diag_html = "".join([f"<span style='color:#60a5fa;'>{line}</span>" for line in ship.diagnostics])
