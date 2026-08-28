@@ -9,9 +9,16 @@ import time
 import json
 import os
 import textwrap
+import re
 def md(content, *args, **kwargs):
     if isinstance(content, str):
         content = textwrap.dedent(content).strip("\n")
+        # Streamlit can display multiline inline HTML/CSS as code.
+        # Collapse whitespace while preserving CSS/HTML separators.
+        if "<" in content and ">" in content:
+            content = re.sub(r"\s+", " ", content)
+            content = re.sub(r"\s*([{}:;])\s*", r"\1", content)
+            content = re.sub(r";(?=[}])", ";", content)
     st.markdown(content, *args, **kwargs)
 st.set_page_config(
     page_title="A.P.E.X. VOID DRIFT",
