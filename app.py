@@ -8,6 +8,8 @@ import math
 import time
 import json
 import os
+import hashlib
+import secrets
 import textwrap
 import re
 def md(content, *args, **kwargs):
@@ -204,11 +206,11 @@ MODULE_DB = {
         },
         "Overdrive Thruster": {
             "cost": 30000,
-            "desc": "Double depth progression. Double fuel cost."
+            "desc": "2x standard depth progression. 2x standard fuel cost."
         },
         "Eco-Pulse Drive": {
             "cost": 30000,
-            "desc": "Half fuel cost. Half depth progression."
+            "desc": "Half standard fuel cost. Half standard depth progression."
         },
         "AMG Kompressor Drive": {
             "cost": 55000,
@@ -334,47 +336,23 @@ class MissionBoard:
         ]
         for i in range(4):
             roll = random.random()
-            if roll > 0.6:
+            if roll < 0.35:
                 t = random.choice(targets)
                 amt = random.randint(2, 5)
-                reward = int(
-                    SCRAP_DB[t]["base"]
-                    * amt
-                    * random.uniform(2.5, 5.0)
-                )
-                pool.append({
-                    "id": i,
-                    "type": "gather",
-                    "target": t,
-                    "amount": amt,
-                    "reward": reward,
-                    "desc": f"Acquisition: {amt}x {t}"
-                })
-            elif roll > 0.2:
+                reward = int(SCRAP_DB[t]["base"] * amt * random.uniform(2.5, 5.0))
+                pool.append({"id": i, "type": "gather", "target": t, "amount": amt, "reward": reward, "desc": f"Acquisition: {amt}x {t}"})
+            elif roll < 0.60:
                 d = random.randint(15, 60)
-                reward = d * 850
-                pool.append({
-                    "id": i,
-                    "type": "depth",
-                    "target": float(d),
-                    "amount": 1,
-                    "reward": int(reward),
-                    "desc": f"Survey: Reach {d}.0 AU Apoapsis"
-                })
-            else:
-                reward = random.randint(
-                    25000,
-                    75000
-                )
+                pool.append({"id": i, "type": "depth", "target": float(d), "amount": 1, "reward": d * 850, "desc": f"Survey: Reach {d}.0 AU Apoapsis"})
+            elif roll < 0.80:
                 amount = random.randint(3, 7)
-                pool.append({
-                    "id": i,
-                    "type": "combat",
-                    "target": "Bounty",
-                    "amount": amount,
-                    "reward": reward,
-                    "desc": f"Bounty: Destroy {amount} Hostiles"
-                })
+                pool.append({"id": i, "type": "combat", "target": "Bounty", "amount": amount, "reward": random.randint(25000, 75000), "desc": f"Bounty: Destroy {amount} Hostiles"})
+            elif roll < 0.90:
+                target = random.choice([35.0, 50.0, 75.0])
+                pool.append({"id": i, "type": "tonnage", "target": target, "amount": 1, "reward": int(target * random.uniform(900, 1400)), "desc": f"Salvage: Deliver {target:.0f}t of recovered material"})
+            else:
+                target = float(random.randint(20, 45))
+                pool.append({"id": i, "type": "pristine", "target": target, "amount": 1, "reward": int(target * 1800), "desc": f"Pristine Run: Reach {target:.0f} AU without hull damage"})
         return pool
     def to_dict(self):
         return self.__dict__
@@ -421,6 +399,8 @@ class SalvageShip:
         self.shields = self.get_max_shields()
         self.fuel = self.get_max_fuel()
         self.hostile_encounter = None
+        self.active_anomaly = None
+        self.hull_breached_this_run = False
     def get_max_hull(self):
         base = (
             150
@@ -584,6 +564,7 @@ class SalvageShip:
                 self.shields = 0
                 amount = bleed
         self.hull -= amount
+        self.hull_breached_this_run = True
         self.add_log(
             f"💥 BREACH: Took {amount} DMG to Hull "
             f"from {source}. Integrity at "
@@ -611,6 +592,8 @@ class SalvageShip:
         self.radar_data = []
         self.hostile_encounter = None
         self.sentinel_encountered = False
+        self.active_anomaly = None
+        self.hull_breached_this_run = False
         self.hull = self.get_max_hull()
         self.shields = self.get_max_shields()
         self.fuel = self.get_max_fuel()
@@ -630,36 +613,77 @@ class SalvageShip:
             if hasattr(obj, key):
                 setattr(obj, key, value)
         return obj
-def get_save_path(username):
-    safe_name = "".join([
-        c
-        for c in username
+def normalize_username(username):
+    safe = "".join(
+        c for c in username.strip().upper()
         if c.isalnum() or c in (" ", "_")
-    ]).rstrip()
-    return (
-        f"apex_save_"
-        f"{safe_name.replace(' ', '_')}.json"
-    )
+    ).strip()
+    return safe[:24]
+def get_save_path(username):
+    safe_name = normalize_username(username)
+    return f"apex_save_{safe_name.replace(' ', '_')}.json"
+def get_account_path(username):
+    safe_name = normalize_username(username)
+    return f"apex_account_{safe_name.replace(' ', '_')}.json"
+def hash_password(password, salt):
+    return hashlib.pbkdf2_hmac(
+        "sha256", password.encode("utf-8"),
+        salt.encode("utf-8"), 120_000
+    ).hex()
+def create_account(username, password):
+    username = normalize_username(username)
+    if not username or len(password) < 4:
+        return False
+    path = get_account_path(username)
+    if os.path.exists(path):
+        return False
+    salt = secrets.token_hex(16)
+    data = {
+        "username": username,
+        "salt": salt,
+        "password_hash": hash_password(password, salt)
+    }
+    tmp = path + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(data, f)
+    os.replace(tmp, path)
+    return True
+def verify_account(username, password):
+    username = normalize_username(username)
+    path = get_account_path(username)
+    if not os.path.exists(path):
+        # Migrate saves created by the old version: the first successful
+        # login establishes the access code for that legacy save.
+        if os.path.exists(get_save_path(username)) and password:
+            return create_account(username, password)
+        return False
+    try:
+        with open(path, "r") as f:
+            data = json.load(f)
+        salt = data["salt"]
+        expected = data["password_hash"]
+        actual = hash_password(password, salt)
+        return secrets.compare_digest(actual, expected)
+    except (OSError, ValueError, KeyError, TypeError):
+        return False
 def load_game(username):
     path = get_save_path(username)
     if os.path.exists(path):
-        with open(path, "r") as f:
-            data = json.load(f)
-        ship = SalvageShip.from_dict(
-            data.get("ship", {})
-        )
-        market = DynamicMarket.from_dict(
-            data.get("market", {})
-        )
-        missions = MissionBoard.from_dict(
-            data.get("missions", {})
-        )
-        return ship, market, missions
-    return (
-        SalvageShip(),
-        DynamicMarket(),
-        MissionBoard()
-    )
+        try:
+            with open(path, "r") as f:
+                data = json.load(f)
+            return (
+                SalvageShip.from_dict(data.get("ship", {})),
+                DynamicMarket.from_dict(data.get("market", {})),
+                MissionBoard.from_dict(data.get("missions", {}))
+            )
+        except (OSError, ValueError, TypeError, KeyError):
+            corrupt = path + ".corrupt"
+            try:
+                os.replace(path, corrupt)
+            except OSError:
+                pass
+    return SalvageShip(), DynamicMarket(), MissionBoard()
 def save_game(username, ship, market, missions):
     path = get_save_path(username)
     data = {
@@ -667,8 +691,10 @@ def save_game(username, ship, market, missions):
         "market": market.to_dict(),
         "missions": missions.to_dict()
     }
-    with open(path, "w") as f:
+    tmp = path + ".tmp"
+    with open(tmp, "w") as f:
         json.dump(data, f)
+    os.replace(tmp, path)
 def save_state_and_rerun():
     save_game(
         st.session_state.username,
@@ -706,6 +732,28 @@ def check_mission_completion(ship):
             completed = True
     elif c["type"] == "combat":
         if ship.bounties_cleared_this_run >= c["amount"]:
+            completed = True
+    elif c["type"] == "tonnage":
+        if ship.get_cargo_weight() >= c["target"]:
+            remaining_target = float(c["target"])
+            new_cargo = []
+            for item in ship.cargo:
+                if remaining_target <= 0:
+                    new_cargo.append(item)
+                    continue
+                if item["weight"] <= remaining_target:
+                    remaining_target -= item["weight"]
+                else:
+                    # Cargo is stored as indivisible items, so don't delete
+                    # an item worth more than the remaining contract target.
+                    new_cargo.append(item)
+            ship.cargo = new_cargo
+            completed = True
+    elif c["type"] == "pristine":
+        if (
+            ship.depth_au >= c["target"]
+            and not ship.hull_breached_this_run
+        ):
             completed = True
     if completed:
         ship.credits += c["reward"]
@@ -864,10 +912,10 @@ def trigger_encounter(ship):
     system_threat_mod = STAR_SYSTEMS[
         ship.current_system
     ]["threat_mult"]
-    threat_chance = (
-        0.20
-        + (ship.depth_au * 0.005)
-    ) * system_threat_mod
+    threat_chance = min(
+        0.90,
+        (0.20 + (ship.depth_au * 0.005)) * system_threat_mod
+    )
     if random.random() < threat_chance:
         enemy_types = [
             {
@@ -1024,10 +1072,11 @@ def evade_combat(ship):
         execute_combat_round(ship)
         return
     ship.fuel -= fuel_cost
-    if random.random() < (
-        0.45
-        + ship.get_apex_dodge()
-    ):
+    evade_chance = min(
+        0.95,
+        0.45 + (ship.get_apex_dodge() * 0.50)
+    )
+    if random.random() < evade_chance:
         ship.add_log(
             "💨 EVASION SUCCESSFUL: "
             "Executed erratic inclination burn. "
@@ -1064,10 +1113,10 @@ def harvest_target(ship, blip_idx):
     system_hazard_mod = STAR_SYSTEMS[
         ship.current_system
     ]["hazard_mult"]
-    collision_chance = (
-        0.15
-        + (ship.depth_au * 0.005)
-    ) * system_hazard_mod
+    collision_chance = min(
+        0.85,
+        (0.15 + (ship.depth_au * 0.005)) * system_hazard_mod
+    )
     if random.random() < collision_chance:
         ship.add_log(
             "☄️ DEBRIS STRIKE: "
@@ -1119,12 +1168,12 @@ def push_orbit(ship):
     depth_min = 2.5
     depth_max = 6.0
     if ship.active_engine == "Overdrive Thruster":
-        base_cost = 85
-        depth_min = 6.0
-        depth_max = 14.0
+        base_cost = 80
+        depth_min = 5.0
+        depth_max = 12.0
     elif ship.active_engine == "Eco-Pulse Drive":
         base_cost = 20
-        depth_min = 1.0
+        depth_min = 1.25
         depth_max = 3.0
     elif ship.active_engine == "AMG Kompressor Drive":
         base_cost = 55
@@ -1472,7 +1521,7 @@ def render_radar(ship):
         polar=dict(
             radialaxis=dict(
                 visible=True,
-                range=[0, 25],
+                range=[0, max(25, max((b["dist"] for b in ship.radar_data), default=0) + 2)],
                 gridcolor=(
                     "rgba(56, 189, 248, 0.15)"
                 ),
@@ -1540,19 +1589,16 @@ def main():
                 type="password",
                 key="l_pwd"
             )
-            if st.button(
-                "AUTHORIZE LINK"
-            ):
-                if user and pwd:
+            if st.button("AUTHORIZE LINK"):
+                username = normalize_username(user)
+                if not username or not pwd:
+                    st.error("CREDENTIALS REQUIRED")
+                elif verify_account(username, pwd):
                     st.session_state.logged_in = True
-                    st.session_state.username = (
-                        user.strip().upper()
-                    )
+                    st.session_state.username = username
                     st.rerun()
                 else:
-                    st.error(
-                        "CREDENTIALS REQUIRED"
-                    )
+                    st.error("INVALID CALLSIGN OR ACCESS CODE")
         with tab_reg:
             new_user = st.text_input(
                 "NEW CALLSIGN",
@@ -1571,22 +1617,21 @@ def main():
                     "Vagabond (Balanced Standard)"
                 ]
             )
-            if st.button(
-                "INITIALIZE PILOT"
-            ):
-                if new_user and new_pwd:
+            if st.button("INITIALIZE PILOT"):
+                username = normalize_username(new_user)
+                if not username or not new_pwd:
+                    st.error("ALL FIELDS REQUIRED")
+                elif len(new_pwd) < 4:
+                    st.error("ACCESS CODE MUST BE AT LEAST 4 CHARACTERS")
+                elif os.path.exists(get_save_path(username)) or os.path.exists(get_account_path(username)):
+                    st.error("CALLSIGN ALREADY REGISTERED")
+                elif create_account(username, new_pwd):
                     st.session_state.logged_in = True
-                    st.session_state.username = (
-                        new_user.strip().upper()
-                    )
-                    st.session_state.starting_class = (
-                        ship_class.split(" ")[0]
-                    )
+                    st.session_state.username = username
+                    st.session_state.starting_class = ship_class.split(" ")[0]
                     st.rerun()
                 else:
-                    st.error(
-                        "ALL FIELDS REQUIRED"
-                    )
+                    st.error("REGISTRATION FAILED")
         md(
             "</div>",
             unsafe_allow_html=True
