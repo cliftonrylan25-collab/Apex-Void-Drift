@@ -72,6 +72,22 @@ STAR_SYSTEMS = {
         "color": "#c084fc"
     }
 }
+
+# Expanded galaxy sectors. Existing sectors are preserved; these add longer-term exploration.
+STAR_SYSTEMS.update({
+    "Helios Veil": {"desc":"A pale stellar nursery wrapped in ionized dust. Excellent salvage, unstable navigation.","threat_mult":1.3,"loot_mult":1.4,"hazard_mult":1.4,"jump_cost":18000,"color":"#fbbf24","unlock_depth":10},
+    "Nyx Relay": {"desc":"A silent communications corridor filled with abandoned relay towers and encrypted traffic.","threat_mult":1.5,"loot_mult":1.7,"hazard_mult":1.1,"jump_cost":22000,"color":"#818cf8","unlock_depth":15},
+    "Vesper Expanse": {"desc":"Cold, dark space where pirate fleets hunt the remains of lost colonies.","threat_mult":2.0,"loot_mult":1.8,"hazard_mult":1.3,"jump_cost":30000,"color":"#a78bfa","unlock_depth":25},
+    "Obsidian Reach": {"desc":"A black asteroid belt hiding dense veins of exotic material and ancient wrecks.","threat_mult":1.7,"loot_mult":2.3,"hazard_mult":2.0,"jump_cost":42000,"color":"#64748b","unlock_depth":35},
+    "Cinder Crown": {"desc":"A violent red-star system with extreme radiation and valuable reactor components.","threat_mult":2.4,"loot_mult":2.0,"hazard_mult":2.4,"jump_cost":50000,"color":"#f97316","unlock_depth":45},
+    "Eidolon Graveyard": {"desc":"Hundreds of dead ships drift here. Something still answers their distress calls.","threat_mult":2.6,"loot_mult":2.6,"hazard_mult":1.8,"jump_cost":65000,"color":"#f472b6","unlock_depth":55},
+    "The Glass Frontier": {"desc":"A crystalline region that bends sensor readings and hides impossible structures.","threat_mult":2.2,"loot_mult":3.0,"hazard_mult":2.7,"jump_cost":80000,"color":"#67e8f9","unlock_depth":65},
+    "Blackstar Corridor": {"desc":"A collapsed star's gravity well distorts time, fuel burn and weapons fire.","threat_mult":3.0,"loot_mult":2.7,"hazard_mult":3.0,"jump_cost":100000,"color":"#fb7185","unlock_depth":75},
+    "The Rift": {"desc":"A torn region of space where normal navigation rules no longer apply.","threat_mult":3.2,"loot_mult":3.2,"hazard_mult":3.3,"jump_cost":125000,"color":"#d946ef","unlock_depth":85},
+    "Null Meridian": {"desc":"The last mapped coordinate. Signals here arrive before they are transmitted.","threat_mult":3.5,"loot_mult":3.6,"hazard_mult":3.5,"jump_cost":160000,"color":"#e879f9","unlock_depth":100},
+    "The Silent Engine": {"desc":"An enormous dormant machine hidden beyond the known map. Its power source is unknown.","threat_mult":3.8,"loot_mult":4.0,"hazard_mult":3.8,"jump_cost":200000,"color":"#f0abfc","unlock_depth":125},
+    "Void Crown": {"desc":"A forbidden system surrounding a region of absolute darkness.","threat_mult":4.2,"loot_mult":4.5,"hazard_mult":4.2,"jump_cost":250000,"color":"#c084fc","unlock_depth":150},
+})
 SCRAP_DB = {
     "Iron-Carbon": {
         "base": 15,
@@ -321,6 +337,7 @@ class DynamicMarket:
         for key, value in data.items():
             if hasattr(obj, key):
                 setattr(obj, key, value)
+        ensure_progress_fields(obj)
         return obj
 class MissionBoard:
     def __init__(self):
@@ -364,6 +381,89 @@ class MissionBoard:
             obj.generate_new()
         )
         return obj
+DEEP_EVENTS = [
+    {"id":"distress","title":"DISTRESS SIGNAL","text":"A damaged survey ship is broadcasting on an obsolete emergency frequency.","choices":[("RESPOND","rescue"),("SCAN FROM DISTANCE","scan"),("IGNORE","ignore")]},
+    {"id":"freighter","title":"DERELICT FREIGHTER","text":"A silent freighter tumbles nearby. Its cargo registry is still active.","choices":[("BOARD","board"),("SALVAGE EXTERNALLY","salvage"),("LEAVE IT","ignore")]},
+    {"id":"ai","title":"ROGUE AI","text":"A machine intelligence has latched onto your navigation system and offers coordinates to an unknown facility.","choices":[("ACCEPT COORDINATES","ai_accept"),("QUARANTINE SIGNAL","scan"),("CUT LINK","ignore")]},
+    {"id":"smuggler","title":"UNREGISTERED VESSEL","text":"A smuggler offers a sealed container. They refuse to identify its contents.","choices":[("TRADE","trade"),("SCAN","scan"),("REPORT","report")]},
+    {"id":"artifact","title":"IMPOSSIBLE OBJECT","text":"Sensors report an object with no mass, no heat signature and a measurable gravitational field.","choices":[("APPROACH","artifact"),("MARK COORDINATES","mark"),("FLEE","ignore")]},
+    {"id":"flare","title":"STELLAR FLARE","text":"A star erupts across your flight path. You have seconds to choose a response.","choices":[("RUN THE FLARE","flare_run"),("RIDE THE WAVE","flare_ride"),("DROP TO SAFE VECTOR","flare_safe")]},
+    {"id":"lost","title":"LOST EXPEDITION","text":"A decades-old expedition beacon activates. Its coordinates point deeper than any official chart.","choices":[("FOLLOW","lost_follow"),("COPY DATA","lost_data"),("DISCONNECT","ignore")]},
+    {"id":"wormhole","title":"UNSTABLE WORMHOLE","text":"A temporary wormhole has opened. Its exit coordinates cannot be predicted.","choices":[("ENTER","wormhole"),("SCAN","scan"),("WAIT","ignore")]},
+    {"id":"station","title":"ABANDONED STATION","text":"A station with functioning power systems waits in the dark. No crew responds.","choices":[("DOCK","station"),("SCAN","scan"),("PASS BY","ignore")]},
+    {"id":"leviathan","title":"VOID ECHO","text":"Something enormous moves beyond your sensors. It is matching your vector.","choices":[("BROADCAST","broadcast"),("HIDE","hide"),("CHASE IT","chase")]},
+]
+
+ACHIEVEMENT_DB = {
+    "first_launch":("FIRST FLIGHT","Complete your first prograde burn."),
+    "deep_25":("DEEP RUNNER","Reach 25 AU."),
+    "deep_100":("EDGE OF THE MAP","Reach 100 AU."),
+    "systems_5":("WAYFINDER","Discover 5 star systems."),
+    "systems_10":("STAR CARTOGRAPHER","Discover 10 star systems."),
+    "salvage_25":("SALVAGE CREW","Harvest 25 anomalies."),
+    "boss_1":("BOSS HUNTER","Defeat a major Void boss."),
+    "void_relic":("THE RELIC","Recover the Void Relic."),
+    "millionaire":("MILLIONAIRE","Hold 1,000,000 CR."),
+    "void_drift":("VOID DRIFTER","Enter the endless Void Drift."),
+}
+
+def ensure_progress_fields(ship):
+    defaults={"discoveries":[],"discovery_count":0,"salvage_count":0,"achievements":[],"story_flags":[],"story_stage":0,"pending_event":None,"event_history":[],"void_drift_active":False,"void_drift_best":0.0,"void_drift_score":0,"bosses_defeated":[],"boss_bonuses":[],"stats":{"launches":0,"events":0,"jumps":0}}
+    for k,v in defaults.items():
+        if not hasattr(ship,k) or getattr(ship,k) is None: setattr(ship,k,v.copy() if isinstance(v,(list,dict)) else v)
+    if not isinstance(ship.stats,dict): ship.stats={}
+    for k,v in defaults["stats"].items(): ship.stats.setdefault(k,v)
+
+def award_achievement(ship,key):
+    ensure_progress_fields(ship)
+    if key in ship.achievements: return
+    if key in ACHIEVEMENT_DB:
+        ship.achievements.append(key)
+        name,_=ACHIEVEMENT_DB[key]
+        ship.add_log(f"🏆 ACHIEVEMENT UNLOCKED: {name}")
+
+def record_discovery(ship,name,kind="UNKNOWN"):
+    ensure_progress_fields(ship)
+    tag=f"{kind}:{name}"
+    if tag not in ship.discoveries:
+        ship.discoveries.append(tag); ship.discovery_count=len(ship.discoveries)
+        ship.add_log(f"🧭 DISCOVERY LOGGED: {name}")
+    if len([x for x in ship.discoveries if x.startswith("SYSTEM:")])>=5: award_achievement(ship,"systems_5")
+    if len([x for x in ship.discoveries if x.startswith("SYSTEM:")])>=10: award_achievement(ship,"systems_10")
+
+def update_progress(ship):
+    ensure_progress_fields(ship)
+    if ship.max_depth>=25: award_achievement(ship,"deep_25")
+    if ship.max_depth>=100: award_achievement(ship,"deep_100")
+    if ship.salvage_count>=25: award_achievement(ship,"salvage_25")
+    if ship.credits>=1000000: award_achievement(ship,"millionaire")
+    if ship.void_relic: award_achievement(ship,"void_relic")
+    if ship.bosses_defeated: award_achievement(ship,"boss_1")
+    if ship.void_drift_active: award_achievement(ship,"void_drift")
+
+def roll_deep_event(ship):
+    ensure_progress_fields(ship)
+    if ship.pending_event or random.random()>0.22: return
+    event=random.choice(DEEP_EVENTS).copy()
+    ship.pending_event=event
+    ship.stats["events"]+=1
+    ship.event_history.append(event["id"])
+    ship.add_log(f"⚠️ UNKNOWN EVENT: {event['title']}")
+
+def resolve_deep_event(ship,choice):
+    ensure_progress_fields(ship)
+    if not ship.pending_event: return
+    c=choice
+    rewards={"rescue":(2500,"Rescue payment received."),"scan":(1200,"Sensor data copied to the archive."),"board":(random.randint(3000,9000),"Recovered cargo from the derelict."),"salvage":(random.randint(1500,5000),"External salvage secured."),"ai_accept":(random.randint(5000,12000),"Rogue AI provided coordinates to a hidden facility."),"trade":(random.randint(2500,8000),"Sealed container acquired."),"report":(4000,"Authority reward issued."),"artifact":(random.randint(8000,20000),"Impossible object yielded an exotic artifact."),"mark":(1000,"Coordinates archived for future exploration."),"flare_safe":(0,"Safe vector maintained. Minor fuel loss."),"flare_run":(-2500,"Radiation damaged the ship during the escape."),"flare_ride":(3000,"Flare wave accelerated the vessel."),"lost_follow":(9000,"Expedition coordinates revealed a deeper route."),"lost_data":(5000,"Expedition logs added to the archive."),"wormhole":(12000,"The wormhole deposited you near a rare salvage field."),"station":(7000,"Station stores recovered."),"broadcast":(5000,"The signal returned a fragment of alien telemetry."),"hide":(1500,"You hid in a debris shadow and escaped notice."),"chase":(0,"The entity vanished before you could close distance.")}
+    reward,msg=rewards.get(c,(0,"The encounter passed without incident."))
+    if reward>=0: ship.credits+=reward
+    else: ship.take_damage(abs(reward),"Stellar Radiation")
+    if c in ("artifact","ai_accept","lost_follow","wormhole"): record_discovery(ship,"ANOMALOUS COORDINATE","ANOMALY"); ship.story_stage=min(5,ship.story_stage+1)
+    if c=="station": record_discovery(ship,"ABANDONED STATION","LOCATION")
+    ship.add_log(f"🛰️ {msg}")
+    ship.pending_event=None
+    update_progress(ship)
+
 class SalvageShip:
     def __init__(self, ship_class="Vagabond"):
         self.credits = 1500
@@ -401,6 +501,7 @@ class SalvageShip:
         self.hostile_encounter = None
         self.active_anomaly = None
         self.hull_breached_this_run = False
+        ensure_progress_fields(self)
     def get_max_hull(self):
         base = (
             150
@@ -429,6 +530,8 @@ class SalvageShip:
         )
         if self.ship_class == "Scout":
             base *= 1.2
+        if "THE CINDER WARDEN" in getattr(self,"boss_bonuses",[]):
+            base *= 1.20
         return int(base)
     def get_max_cargo(self):
         base = (
@@ -442,6 +545,8 @@ class SalvageShip:
             base *= 2.0
         elif self.ship_class == "Scout":
             base *= 0.6
+        if "THE VOID LEVIATHAN" in getattr(self,"boss_bonuses",[]):
+            base += 75
         return base
     def get_firepower(self):
         base = (
@@ -457,6 +562,8 @@ class SalvageShip:
             base *= 0.8
         if self.void_relic:
             base *= 1.25
+        if "THE GRAVEFLEET DREADNOUGHT" in getattr(self,"boss_bonuses",[]):
+            base *= 1.15
         return int(base)
     def get_fuel_efficiency(self):
         reduction = (
@@ -469,6 +576,8 @@ class SalvageShip:
         )
         if self.void_relic:
             eff *= 0.8
+        if "BLACKSTAR" in getattr(self,"boss_bonuses",[]):
+            eff *= 0.85
         return eff
     def get_apex_dodge(self):
         base = min(
@@ -814,6 +923,8 @@ def process_random_event(ship):
 def scan_sector(ship):
     blips = []
     radar_lvl = ship.upgrades["radar"]
+    if "THE NULL ENGINE" in getattr(ship,"boss_bonuses",[]):
+        radar_lvl += 4
     if ship.active_scanner == "SX65 Retro-Cam Array":
         radar_lvl += 2
     system_loot_mod = STAR_SYSTEMS[
@@ -891,24 +1002,22 @@ def scan_sector(ship):
         f"{len(blips)} signatures locked."
     )
 def trigger_encounter(ship):
-    if (
-        ship.depth_au >= 60.0
-        and ship.current_system == "The Void Abyss"
-        and not ship.void_relic
-        and not ship.sentinel_encountered
-    ):
-        ship.hostile_encounter = {
-            "name": "THE VOID SENTINEL",
-            "hp": 4500,
-            "dmg": 150,
-            "is_boss": True
-        }
-        ship.sentinel_encountered = True
-        ship.add_log(
-            "⚠️ CRITICAL ANOMALY: "
-            "THE VOID SENTINEL HAS AWAKENED!"
-        )
-        return
+    ensure_progress_fields(ship)
+    boss_by_system = {
+        "The Void Abyss": (60.0, "THE VOID SENTINEL", 4500, 150),
+        "Cinder Crown": (50.0, "THE CINDER WARDEN", 6200, 190),
+        "Eidolon Graveyard": (70.0, "THE GRAVEFLEET DREADNOUGHT", 7800, 225),
+        "Blackstar Corridor": (90.0, "BLACKSTAR", 9500, 260),
+        "Null Meridian": (120.0, "THE NULL ENGINE", 12500, 300),
+        "Void Crown": (170.0, "THE VOID LEVIATHAN", 18000, 360)
+    }
+    if ship.current_system in boss_by_system:
+        min_depth,boss_name,boss_hp,boss_dmg=boss_by_system[ship.current_system]
+        if ship.depth_au >= min_depth and boss_name not in ship.bosses_defeated:
+            ship.hostile_encounter={"name":boss_name,"hp":boss_hp + int(ship.depth_au*8),"dmg":boss_dmg + int(ship.depth_au*0.8),"is_boss":True,"phase":1}
+            ship.sentinel_encountered = True if boss_name == "THE VOID SENTINEL" else ship.sentinel_encountered
+            ship.add_log(f"⚠️ CRITICAL ANOMALY: {boss_name} HAS AWAKENED!")
+            return
     system_threat_mod = STAR_SYSTEMS[
         ship.current_system
     ]["threat_mult"]
@@ -1012,13 +1121,22 @@ def execute_combat_round(ship):
     )
     if enemy["hp"] <= 0:
         if enemy.get("is_boss", False):
-            ship.void_relic = True
-            ship.add_log(
-                "🏆 VICTORY: "
-                "The Void Sentinel is destroyed! "
-                "You obtained the VOID RELIC."
-            )
-            bounty = 250000
+            ensure_progress_fields(ship)
+            boss_name=enemy["name"]
+            if boss_name not in ship.bosses_defeated:
+                ship.bosses_defeated.append(boss_name)
+            if boss_name != "THE VOID SENTINEL" and boss_name not in ship.boss_bonuses:
+                ship.boss_bonuses.append(boss_name)
+            if boss_name == "THE VOID SENTINEL":
+                ship.void_relic = True
+                ship.story_stage = 5
+                ship.add_log("🏆 VICTORY: The Void Sentinel is destroyed! You obtained the VOID RELIC.")
+                bounty = 250000
+            else:
+                ship.story_stage = min(5, ship.story_stage + 1)
+                ship.add_log(f"🏆 BOSS DESTROYED: {boss_name}. A unique Void route has been recorded.")
+                bounty = int(150000 + enemy["dmg"] * 500)
+            update_progress(ship)
         else:
             ship.add_log(
                 f"✅ THREAT NEUTRALIZED: "
@@ -1151,6 +1269,10 @@ def harvest_target(ship, blip_idx):
             "name": item,
             "weight": weight
         })
+        ensure_progress_fields(ship)
+        ship.salvage_count += 1
+        record_discovery(ship, item, "RESOURCE")
+        update_progress(ship)
         ship.add_log(
             f"✅ SECURED: "
             f"{item} | Mass: {weight}t"
@@ -1195,11 +1317,16 @@ def push_orbit(ship):
         depth_min,
         depth_max
     )
+    ensure_progress_fields(ship)
+    ship.stats["launches"] += 1
     ship.depth_au += burn_distance
     ship.max_depth = max(
         ship.max_depth,
         ship.depth_au
     )
+    if getattr(ship, "void_drift_active", False):
+        ship.void_drift_score += int(burn_distance * 100 * max(1.0, STAR_SYSTEMS[ship.current_system]["threat_mult"]))
+        ship.void_drift_best = max(ship.void_drift_best, ship.depth_au)
     ship.add_log(
         f"🚀 PROGRADE BURN: "
         f"Pushing apoapsis to "
@@ -1229,6 +1356,10 @@ def push_orbit(ship):
     process_random_event(ship)
     scan_sector(ship)
     trigger_encounter(ship)
+    if not ship.hostile_encounter:
+        roll_deep_event(ship)
+    record_discovery(ship, ship.current_system, "SYSTEM")
+    update_progress(ship)
     check_mission_completion(ship)
 def return_to_base(ship, market, missions):
     if ship.hostile_encounter:
@@ -1258,6 +1389,10 @@ def return_to_base(ship, market, missions):
         )
         return
     ship.fuel -= f_cost
+    if getattr(ship, "void_drift_active", False):
+        ship.void_drift_best = max(ship.void_drift_best, ship.depth_au)
+        ship.void_drift_active = False
+        ship.add_log(f"🌀 VOID DRIFT RECORD: {ship.void_drift_best:.1f} AU / {ship.void_drift_score:,} score")
     ship.depth_au = 0.0
     ship.radar_data = []
     ship.sentinel_encountered = False
@@ -1874,6 +2009,9 @@ def main():
         tab_gate,
         tab_contract,
         tab_market,
+        tab_galaxy,
+        tab_archive,
+        tab_void,
         tab_diag
     ) = st.tabs([
         "🎛️ COMMAND MODULE",
@@ -1882,9 +2020,22 @@ def main():
         "🌌 JUMP GATE",
         "📜 CONTRACTS",
         "📈 EXCHANGE",
+        "🗺️ GALAXY",
+        "📚 ARCHIVE",
+        "🌀 VOID DRIFT",
         "💻 DIAGNOSTICS"
     ])
     with tab_nav:
+        ensure_progress_fields(ship)
+        if ship.pending_event:
+            ev=ship.pending_event
+            md(f"<div class='cyber-card purple'><h3>⚠️ {ev['title']}</h3><p style='font-size:17px;color:#cbd5e1;'>{ev['text']}</p></div>", unsafe_allow_html=True)
+            evcols=st.columns(len(ev['choices']))
+            for idx,(label,action) in enumerate(ev['choices']):
+                with evcols[idx]:
+                    if st.button(label,key=f"event_{ev['id']}_{idx}",use_container_width=True):
+                        resolve_deep_event(ship,action)
+                        save_state_and_rerun()
         c_act, c_log = st.columns([
             1.2,
             1.5
@@ -2979,13 +3130,11 @@ def main():
                             """,
                             unsafe_allow_html=True
                         )
+                        unlocked = ship.max_depth >= sys_data.get("unlock_depth", 0) or sys_name == "Alpha Centauri Sector" or sys_name == ship.current_system
                         if st.button(
                             "INITIATE SECTOR JUMP",
                             key=f"jump_{sys_name}",
-                            disabled=(
-                                ship.credits
-                                < sys_data["jump_cost"]
-                            )
+                            disabled=(ship.credits < sys_data["jump_cost"] or not unlocked)
                         ):
                             if (
                                 ship.credits
@@ -2997,6 +3146,9 @@ def main():
                                 ship.current_system = (
                                     sys_name
                                 )
+                                ensure_progress_fields(ship)
+                                ship.stats["jumps"] += 1
+                                record_discovery(ship, sys_name, "SYSTEM")
                                 ship.add_log(
                                     f"🌌 JUMP SUCCESSFUL: "
                                     f"Arrived in {sys_name}."
@@ -3209,6 +3361,61 @@ def main():
                     """,
                     unsafe_allow_html=True
                 )
+    with tab_galaxy:
+        ensure_progress_fields(ship)
+        md("### 🗺️ GALACTIC CARTOGRAPHY")
+        systems_found=len([x for x in ship.discoveries if x.startswith("SYSTEM:")])
+        st.write(f"**Systems discovered:** {systems_found} / {len(STAR_SYSTEMS)}  |  **Total discoveries:** {ship.discovery_count}")
+        cols=st.columns(2)
+        for idx,(name,data) in enumerate(STAR_SYSTEMS.items()):
+            unlocked=ship.max_depth>=data.get("unlock_depth",0) or name=="Alpha Centauri Sector" or name==ship.current_system
+            with cols[idx%2]:
+                status="DISCOVERED" if f"SYSTEM:{name}" in ship.discoveries else ("UNLOCKED" if unlocked else f"LOCKED — REACH {data.get('unlock_depth',0)} AU")
+                md(f"<div class='cyber-card' style='border-top-color:{data['color']};'><h4 style='color:{data['color']};font-family:Orbitron;'>{name}</h4><p>{data['desc']}</p><p style='color:#94a3b8;'>Threat {data['threat_mult']}x · Loot {data['loot_mult']}x · Hazard {data['hazard_mult']}x</p><strong style='color:#fbbf24;'>{status}</strong></div>",unsafe_allow_html=True)
+
+    with tab_archive:
+        ensure_progress_fields(ship)
+        md("### 📚 A.P.E.X. ARCHIVE")
+        st.write(f"**Void story stage:** {ship.story_stage} / 5")
+        if ship.story_stage==0: st.info("The Void has not revealed its purpose. Keep exploring deeper space and investigate unusual encounters.")
+        else:
+            story=["Unknown signals are beginning to repeat across distant systems.","Recovered logs describe a structure that predates human navigation.","Multiple lost expeditions followed the same impossible coordinates.","The coordinates point toward a region outside conventional space.","The Void appears to be an artificial system — and something inside is awake."]
+            for i,text in enumerate(story,1):
+                md(f"<div class='cyber-card {'success' if i<=ship.story_stage else ''}'><strong>ARCHIVE {i:02d}</strong><p>{text if i<=ship.story_stage else '████████████████████ — LOCKED'}</p></div>",unsafe_allow_html=True)
+        if ship.bosses_defeated:
+            md("### 👹 BOSS TROPHIES")
+            for boss in ship.bosses_defeated:
+                bonus = "Unique ship bonus acquired." if boss != "THE VOID SENTINEL" else "Unlocks the endless Void Drift."
+                st.write(f"• **{boss}** — {bonus}")
+        md("### 🏆 ACHIEVEMENTS")
+        for key,(name,desc) in ACHIEVEMENT_DB.items():
+            unlocked=key in ship.achievements
+            md(f"<div style='padding:8px;border-bottom:1px solid rgba(255,255,255,.05);'><strong>{'🏆' if unlocked else '🔒'} {name}</strong> — {desc}</div>",unsafe_allow_html=True)
+        md("### DISCOVERY LOG")
+        if ship.discoveries:
+            for d in ship.discoveries[-40:]: st.write("• "+d)
+        else: st.info("No discoveries recorded yet.")
+
+    with tab_void:
+        ensure_progress_fields(ship)
+        md("### 🌀 THE VOID DRIFT — ENDLESS EXPEDITION")
+        if not ship.void_relic:
+            st.warning("The endless Void Drift is locked. Recover the Void Relic from the main Void storyline first.")
+        else:
+            st.write(f"**Best Drift Depth:** {ship.void_drift_best:.1f} AU  |  **Current Drift Score:** {ship.void_drift_score:,}")
+            if not ship.void_drift_active and ship.depth_au==0:
+                md("<div class='cyber-card purple'><h3>THE MAP ENDS HERE</h3><p>Beyond the known sectors lies an unstable region with no confirmed endpoint. Every expedition generates rarer encounters and higher rewards.</p></div>",unsafe_allow_html=True)
+                if st.button("🌀 ENTER THE VOID DRIFT",use_container_width=True):
+                    ship.void_drift_active=True; ship.void_drift_score=0; ship.current_system="The Void Abyss"; ship.add_log("🌀 VOID DRIFT ENGAGED: No known endpoint detected."); update_progress(ship); save_state_and_rerun()
+            elif ship.void_drift_active:
+                st.error("VOID DRIFT ACTIVE — RETURN TO BASE TO END THE EXPEDITION")
+                st.metric("Drift Depth",f"{ship.depth_au:.1f} AU")
+                st.metric("Drift Score",f"{ship.void_drift_score:,}")
+                if st.button("⚠️ ABORT VOID DRIFT",use_container_width=True):
+                    ship.void_drift_best=max(ship.void_drift_best,ship.depth_au); ship.void_drift_active=False; ship.depth_au=0; ship.radar_data=[]; ship.hull=ship.get_max_hull(); ship.shields=ship.get_max_shields(); ship.fuel=ship.get_max_fuel(); ship.add_log("🌀 VOID DRIFT ABORTED. Expedition record archived."); save_state_and_rerun()
+            else:
+                st.info("Docked at Alpha Station. Prepare another expedition.")
+
     with tab_diag:
         md(
             "### A.P.E.X. MATRIX INTERNAL DIAGNOSTICS"
